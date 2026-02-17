@@ -664,13 +664,13 @@
                     <span class="dock-icon">🛒</span>
                     <span class="dock-label">商店</span>
                 </button>
-                <button class="dock-btn" onclick="showPagerSystem()">
-                    <span class="dock-icon">📟</span>
-                    <span class="dock-label">BP机</span>
+                <button class="dock-btn" onclick="showCommunicationMenu()">
+                    <span class="dock-icon">📱</span>
+                    <span class="dock-label">通讯</span>
                 </button>
-                <button class="dock-btn" onclick="showQQChatRoom()">
-                    <span class="dock-icon">💬</span>
-                    <span class="dock-label">QQ</span>
+                <button class="dock-btn" onclick="showCollection()">
+                    <span class="dock-icon">📚</span>
+                    <span class="dock-label">图鉴</span>
                 </button>
                 <button class="dock-btn" onclick="showSystemMenu()">
                     <span class="dock-icon">⚙️</span>
@@ -1036,6 +1036,26 @@
             playSound('click');
         }
 
+        // ===== Communication Hub =====
+        function showCommunicationMenu() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">📱 通讯中心</div>`;
+            html += `<div style="text-align:center;margin:20px 0;">`;
+            html += `<div style="margin:10px 0;">选择通讯方式：</div>`;
+            html += `</div>`;
+            
+            html += `<button class="close-btn" style="background:#27ae60;margin:10px;font-size:16px;" onclick="showPagerSystem()">📟 BP机传呼</button>`;
+            html += `<button class="close-btn" style="background:#3498db;margin:10px;font-size:16px;" onclick="showQQChatRoom()">💬 QQ聊天室</button>`;
+            html += `<button class="close-btn" style="background:#e74c3c;margin:10px;font-size:16px;" onclick="showPhoneSystem()">📞 IC卡电话</button>`;
+            html += `<button class="close-btn" style="margin-top:15px;" onclick="closeDialog()">关闭</button>`;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+        
         function showPagerSystem() {
             const overlay = document.getElementById('dialogOverlay');
             const box = document.getElementById('dialogBox');
@@ -1239,6 +1259,106 @@
             closeDialog();
             updateUI();
         }
+        
+        // ===== IC Card Phone System =====
+        function showPhoneSystem() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">📞 公用电话亭</div>`;
+            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div style="margin-bottom:10px;">☎️ IC卡电话 (0.3元/分钟)</div>`;
+            
+            if (npcs.length === 0) {
+                html += `<div style="color:var(--accent-blue);margin:20px 0;text-align:center;">暂无可拨打的租客</div>`;
+            } else {
+                npcs.forEach(npc => {
+                    html += `
+                        <div class="applicant-card" style="cursor:pointer;" onclick="callNPC(${npc.id})">
+                            <div class="applicant-name">📞 ${npc.name}</div>
+                            <div class="applicant-info">${npc.isHome ? '🏠 在家' : '🚶 外出'} | 好感度: ${npc.affection}/100</div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `</div>`;
+            html += `<div style="margin:10px 0;padding:10px;background:var(--card-bg);border-radius:5px;font-size:11px;">`;
+            html += `<div>💡 通话费用: 0.3元/分钟（按1分钟计费）</div>`;
+            html += `<div>💡 租客外出时无法接通电话</div>`;
+            html += `</div>`;
+            html += `<button class="close-btn" onclick="closeDialog()">挂断</button>`;
+
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+        
+        function callNPC(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            if (!npc.isHome) {
+                showNotification(`📞 ${npc.name}现在不在家，无法接通`);
+                playSound('error');
+                return;
+            }
+            
+            if (gameState.money < 3) {
+                showNotification('💸 资金不足！通话至少需要3元');
+                return;
+            }
+            
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">📞 通话中 - ${npc.name}</div>`;
+            html += `<div style="margin:15px 0;">选择通话内容：</div>`;
+            
+            const topics = [
+                { text: '问候闲聊', duration: 3, affection: 8 },
+                { text: '约定见面', duration: 5, affection: 12 },
+                { text: '提醒交租', duration: 2, affection: -5 },
+                { text: '关心生活', duration: 4, affection: 10 }
+            ];
+            
+            topics.forEach((t, idx) => {
+                const cost = t.duration;
+                const canAfford = gameState.money >= cost;
+                html += `<button class="close-btn" style="margin:5px;${!canAfford ? 'opacity:0.5;' : ''}" 
+                    ${canAfford ? `onclick="processPhoneCall(${npcId}, ${idx})"` : ''}>
+                    ${t.text} (${t.duration}元, ${t.affection > 0 ? '+' : ''}${t.affection}💖)
+                </button>`;
+            });
+            
+            html += `<button class="close-btn" style="margin-top:10px;background:var(--accent-blue)" onclick="showPhoneSystem()">返回</button>`;
+            
+            window.phoneTopics = topics;
+            box.innerHTML = html;
+        }
+        
+        function processPhoneCall(npcId, topicIdx) {
+            const npc = npcs.find(n => n.id === npcId);
+            const topic = window.phoneTopics[topicIdx];
+            
+            gameState.money -= topic.duration;
+            npc.affection = Math.max(0, Math.min(100, npc.affection + topic.affection));
+            npc.mood = Math.min(100, npc.mood + (topic.affection > 0 ? 5 : -10));
+            npc.addDailyLog(`电话: ${topic.text}`);
+            
+            const reactions = topic.affection > 0 ? [
+                `${npc.name}很高兴接到你的电话`,
+                `${npc.name}："谢谢你打电话来"`,
+                `通话气氛很融洽`
+            ] : [
+                `${npc.name}似乎有些不耐烦`,
+                `${npc.name}匆匆挂断了电话`
+            ];
+            
+            showNotification(`📞 ${reactions[Math.floor(Math.random() * reactions.length)]}\n通话费: ${topic.duration}元\n💖好感度: ${npc.affection}/100`);
+            closeDialog();
+            updateUI();
+        }
 
         function showSystemMenu() {
             const overlay = document.getElementById('dialogOverlay');
@@ -1329,21 +1449,52 @@
         }
 
         function applyNewsEffect(news) {
-            if (news.effect === 'dotcom_bubble' && !activeNewsEffect) {
+            if (news.effect === 'dotcom_bubble' && activeNewsEffect !== 'dotcom_bubble') {
                 activeNewsEffect = 'dotcom_bubble';
                 showNotification('⚠️ 经济事件：互联网泡沫破裂！\n程序员租客可能失业');
                 triggerShake();
                 playSound('error');
-            } else if (news.effect === 'sars_warning' && !activeNewsEffect) {
+            } else if (news.effect === 'sars_warning' && activeNewsEffect !== 'sars_warning') {
                 activeNewsEffect = 'sars_warning';
-                npcs.forEach(npc => npc.mood = Math.max(0, npc.mood - 20));
-                showNotification('⚠️ 紧急事件：非典预警！\n租客心情下降');
+                npcs.forEach(npc => {
+                    npc.mood = Math.max(0, npc.mood - 20);
+                    npc.addDailyLog('受SARS影响，心情低落');
+                });
+                showNotification('⚠️ 紧急事件：非典预警！\n租客心情下降，需要关心');
                 triggerShake();
                 playSound('error');
-            } else if (news.effect === 'olympic_boost') {
+            } else if (news.effect === 'olympic_boost' && activeNewsEffect !== 'olympic_boost') {
                 activeNewsEffect = 'olympic_boost';
-                showNotification('🎉 喜讯：北京申奥成功！\n经济将迎来发展');
+                npcs.forEach(npc => {
+                    npc.mood = Math.min(100, npc.mood + 30);
+                    npc.addDailyLog('北京申奥成功！心情激动');
+                });
+                showNotification('🎉 喜讯：北京申奥成功！\n全员幸福感+30%');
                 playSound('success');
+            } else if (news.effect === 'economic_boost' && activeNewsEffect !== 'economic_boost') {
+                activeNewsEffect = 'economic_boost';
+                npcs.forEach(npc => {
+                    if (npc.job !== '无业') {
+                        const bonus = Math.floor(npc.salary * 0.1);
+                        npc.money += bonus;
+                        npc.addDailyLog(`WTO入世奖金 +${bonus}元`);
+                    }
+                });
+                showNotification('🎊 中国加入WTO！\n所有在职租客获得奖金');
+                playSound('success');
+            } else if (news.effect === 'rent_increase') {
+                buildings.forEach(room => {
+                    const oldRent = room.rent;
+                    room.rent = Math.floor(room.rent * 1.1);
+                    if (room.status === 'rented') {
+                        const npc = npcs.find(n => n.currentRoom === room.id);
+                        if (npc) {
+                            npc.addDailyLog(`房租涨价：${oldRent}→${room.rent}元`);
+                        }
+                    }
+                });
+                showNotification('📈 房价上涨！\n所有房间租金+10%');
+                playSound('notification');
             }
         }
 
