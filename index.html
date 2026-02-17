@@ -664,13 +664,13 @@
                     <span class="dock-icon">🛒</span>
                     <span class="dock-label">商店</span>
                 </button>
+                <button class="dock-btn" onclick="showPagerSystem()">
+                    <span class="dock-icon">📟</span>
+                    <span class="dock-label">BP机</span>
+                </button>
                 <button class="dock-btn" onclick="showCollection()">
                     <span class="dock-icon">📚</span>
                     <span class="dock-label">图鉴</span>
-                </button>
-                <button class="dock-btn" onclick="handleDockClick('events')">
-                    <span class="dock-icon">📋</span>
-                    <span class="dock-label">事件</span>
                 </button>
                 <button class="dock-btn" onclick="showSystemMenu()">
                     <span class="dock-icon">⚙️</span>
@@ -1015,6 +1015,100 @@
             playSound('click');
         }
 
+        function showPagerSystem() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">📟 BP机通讯系统</div>`;
+            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div style="margin-bottom:10px;">💬 给租客发送BP机信息</div>`;
+            
+            if (npcs.length === 0) {
+                html += `<div style="color:var(--accent-blue);margin:20px 0;text-align:center;">暂无租客</div>`;
+            } else {
+                npcs.forEach(npc => {
+                    html += `
+                        <div class="applicant-card" style="cursor:pointer;" onclick="sendPagerMessage(${npc.id})">
+                            <div class="applicant-name">${npc.gender === 'male' ? '👨' : '👩'} ${npc.name}</div>
+                            <div class="applicant-info">房间: ${npc.currentRoom} | 好感度: ${npc.affection}/100</div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `</div>`;
+            html += `<div style="margin:10px 0;padding:10px;background:var(--card-bg);border-radius:5px;">`;
+            html += `<div style="font-size:11px;margin-bottom:5px;">💡 常用数字暗语：</div>`;
+            html += `<div style="font-size:10px;">520=我爱你 | 1314=一生一世 | 88=拜拜</div>`;
+            html += `<div style="font-size:10px;">995=救救我 | 687=对不起 | 1573=一往情深</div>`;
+            html += `</div>`;
+            html += `<button class="close-btn" onclick="closeDialog()">关闭</button>`;
+
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+        
+        function sendPagerMessage(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">📟 发送给 ${npc.name}</div>`;
+            html += `<div style="margin:15px 0;">选择要发送的信息：</div>`;
+            
+            const messages = [
+                { code: '520', text: '我爱你', affection: 15, cost: 5 },
+                { code: '1314', text: '一生一世', affection: 20, cost: 5 },
+                { code: '88', text: '拜拜', affection: -5, cost: 5 },
+                { code: '1573', text: '一往情深', affection: 18, cost: 5 },
+                { code: '995', text: '救救我（紧急）', affection: 5, cost: 10 }
+            ];
+            
+            messages.forEach((msg, idx) => {
+                const canAfford = gameState.money >= msg.cost;
+                html += `<button class="close-btn" style="margin:5px;${!canAfford ? 'opacity:0.5;' : ''}" 
+                    ${canAfford ? `onclick="processPagerMessage(${npcId}, ${idx})"` : ''}>
+                    ${msg.code} - ${msg.text} (${msg.cost}元)
+                </button>`;
+            });
+            
+            html += `<button class="close-btn" style="margin-top:10px;background:var(--accent-blue)" onclick="showPagerSystem()">返回</button>`;
+            
+            window.pagerMessages = messages;
+            box.innerHTML = html;
+        }
+        
+        function processPagerMessage(npcId, messageIdx) {
+            const npc = npcs.find(n => n.id === npcId);
+            const msg = window.pagerMessages[messageIdx];
+            
+            if (gameState.money < msg.cost) {
+                showNotification('💸 资金不足！');
+                return;
+            }
+            
+            gameState.money -= msg.cost;
+            npc.affection = Math.max(0, Math.min(100, npc.affection + msg.affection));
+            npc.mood = Math.min(100, npc.mood + (msg.affection > 0 ? 10 : -5));
+            npc.addDailyLog(`收到BP机消息: ${msg.code}`);
+            
+            const reactions = msg.affection > 0 ? [
+                `${npc.name}看到消息后笑了`,
+                `${npc.name}很开心收到你的消息`,
+                `${npc.name}回复了一个微笑`
+            ] : [
+                `${npc.name}看起来有些失落`,
+                `${npc.name}没有回应`
+            ];
+            
+            showNotification(`📟 已发送: ${msg.code}\n${reactions[Math.floor(Math.random() * reactions.length)]}\n💖好感度: ${npc.affection}/100`);
+            closeDialog();
+            updateUI();
+        }
+
         function showSystemMenu() {
             const overlay = document.getElementById('dialogOverlay');
             const box = document.getElementById('dialogBox');
@@ -1127,22 +1221,92 @@
                 this.personality = data.personality;
                 this.age = data.age || 22;
                 this.gender = data.gender || 'male';
+                this.appearance = data.appearance || Math.floor(Math.random() * 100); // 0-100 attractiveness
                 
-                this.hunger = 80;
-                this.energy = 80;
-                this.mood = 80;
-                this.money = data.salary || 2000;
+                // Basic needs
+                this.hunger = data.hunger || 80;
+                this.energy = data.energy || 80;
+                this.mood = data.mood || 80;
+                this.thirst = data.thirst || 80;
+                this.bladder = data.bladder || 80;
+                this.money = data.money || data.salary || 2000;
                 
-                this.state = 'idle';
-                this.currentRoom = null;
-                this.isHome = true;
-                this.hasDebt = false;
-                this.workStartHour = 9;
-                this.workEndHour = 18;
+                // Family background
+                this.familyBackground = data.familyBackground || this.generateFamilyBackground();
+                this.fixedAssets = data.fixedAssets || Math.floor(Math.random() * 50000);
+                this.liquidAssets = data.liquidAssets || this.money;
                 
-                this.furniture = [];
-                this.canMarry = false;
-                this.isAdvancedProgrammer = false;
+                // Social relationships
+                this.relationships = data.relationships || [];
+                this.friends = data.friends || [];
+                this.crushes = data.crushes || [];
+                this.admirers = data.admirers || [];
+                this.enemies = data.enemies || [];
+                
+                // Romance & marriage
+                this.isVirgin = data.isVirgin !== undefined ? data.isVirgin : true;
+                this.firstKiss = data.firstKiss || null;
+                this.isMarried = data.isMarried || false;
+                this.spouse = data.spouse || null;
+                this.children = data.children || [];
+                this.loveHistory = data.loveHistory || [];
+                
+                // Inventory & possessions
+                this.inventory = data.inventory || [];
+                
+                // Goals & vision
+                this.currentGoal = data.currentGoal || this.generateGoal();
+                this.dailyLog = data.dailyLog || [];
+                
+                // State
+                this.state = data.state || 'idle';
+                this.currentRoom = data.currentRoom || null;
+                this.isHome = data.isHome !== undefined ? data.isHome : true;
+                this.hasDebt = data.hasDebt || false;
+                this.workStartHour = data.workStartHour || 9;
+                this.workEndHour = data.workEndHour || 18;
+                
+                this.furniture = data.furniture || [];
+                this.canMarry = data.canMarry || false;
+                this.isAdvancedProgrammer = data.isAdvancedProgrammer || false;
+                
+                // Affection system (relationship with player)
+                this.affection = data.affection || 0;
+            }
+            
+            generateFamilyBackground() {
+                const rand = Math.random();
+                if (rand < 0.1) {
+                    return { level: '特困', parentJobs: ['无业', '无业'], description: '家境特别困难' };
+                } else if (rand < 0.2) {
+                    return { level: '贫困', parentJobs: ['工人', '无业'], description: '家境贫困' };
+                } else if (rand < 0.9) {
+                    const jobs = ['工人', '教师', '文员', '销售'];
+                    return { level: '一般', parentJobs: [jobs[Math.floor(Math.random() * jobs.length)], jobs[Math.floor(Math.random() * jobs.length)]], description: '普通家庭' };
+                } else {
+                    return { level: '豪门', parentJobs: ['企业家', '医生'], description: '家境富裕' };
+                }
+            }
+            
+            generateGoal() {
+                const goals = [
+                    '努力工作赚钱',
+                    '找个对象结婚',
+                    '攒钱买房',
+                    '学习新技能',
+                    '孝敬父母',
+                    '环游世界',
+                    '创业成功'
+                ];
+                return goals[Math.floor(Math.random() * goals.length)];
+            }
+            
+            addDailyLog(action) {
+                const timestamp = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                this.dailyLog.push({ time: timestamp, action: action });
+                if (this.dailyLog.length > 50) {
+                    this.dailyLog.shift();
+                }
             }
 
             getJobEmoji() {
@@ -1167,9 +1331,12 @@
                     'sleeping': '💤',
                     'eating': '🍜',
                     'bathing': '🚿',
+                    'toilet': '🚽',
                     'relaxing': '📺',
                     'out': '🚶',
-                    'unemployed': '😢'
+                    'unemployed': '😢',
+                    'dating': '💑',
+                    'shopping': '🛒'
                 };
                 return stateEmojis[this.state] || '🧘';
             }
@@ -1185,8 +1352,13 @@
                 this.hunger = Math.max(0, this.hunger - 0.5);
                 this.energy = Math.max(0, this.energy - 0.3);
                 this.mood = Math.max(0, this.mood - 0.2);
+                this.thirst = Math.max(0, this.thirst - 0.4);
+                this.bladder = Math.max(0, this.bladder - 0.6);
 
-                if (this.hunger < 30) {
+                if (this.bladder < 20) {
+                    this.state = 'toilet';
+                    this.useToilet();
+                } else if (this.hunger < 30 || this.thirst < 30) {
                     this.state = 'eating';
                     this.eat();
                 } else if (this.energy < 20) {
@@ -1195,12 +1367,19 @@
                     this.state = 'relaxing';
                 }
             }
+            
+            useToilet() {
+                this.bladder = 100;
+                this.addDailyLog('上厕所');
+            }
 
             eat() {
                 if (this.money >= 10) {
                     this.money -= 10;
                     this.hunger = Math.min(100, this.hunger + 40);
+                    this.thirst = Math.min(100, this.thirst + 30);
                     this.mood = Math.min(100, this.mood + 5);
+                    this.addDailyLog('吃饭');
                 }
             }
 
@@ -1221,10 +1400,12 @@
                         this.job = '无业';
                         this.state = 'unemployed';
                         this.isHome = true;
+                        this.addDailyLog('失业了');
                         return;
                     }
                 }
 
+                const prevState = this.state;
                 const isWorkHour = hour >= this.workStartHour && hour < this.workEndHour;
                 const isNight = hour >= 22 || hour < 6;
                 const isEvening = hour >= 18 && hour < 22;
@@ -1243,19 +1424,35 @@
                 } else if (isWorkHour && !isWeekend) {
                     this.state = 'working';
                     this.isHome = false;
+                    if (prevState !== 'working') {
+                        this.addDailyLog('去上班');
+                    }
                 } else if (isNight) {
                     this.state = 'sleeping';
                     this.isHome = true;
+                    if (prevState !== 'sleeping' && hour === 22) {
+                        this.addDailyLog('准备睡觉');
+                    }
                 } else if (isEvening) {
                     this.state = 'relaxing';
                     this.isHome = true;
+                    if (prevState === 'working' && hour === 18) {
+                        this.addDailyLog('下班回家');
+                    }
                 } else if (hour >= 6 && hour < 9) {
                     this.state = 'idle';
                     this.isHome = true;
+                    if (hour === 6 && prevState === 'sleeping') {
+                        this.addDailyLog('起床');
+                    }
                 } else {
                     if (Math.random() < 0.2) {
                         this.state = 'out';
                         this.isHome = false;
+                        if (prevState !== 'out') {
+                            const activities = ['去超市购物', '去公园散步', '拜访朋友', '去邮局'];
+                            this.addDailyLog(activities[Math.floor(Math.random() * activities.length)]);
+                        }
                     } else {
                         this.state = 'idle';
                         this.isHome = true;
@@ -1268,27 +1465,38 @@
             restoreNeeds() {
                 if (this.state === 'eating') {
                     this.hunger = Math.min(100, this.hunger + 40);
+                    this.thirst = Math.min(100, this.thirst + 30);
                     this.mood = Math.min(100, this.mood + 5);
                 } else if (this.state === 'sleeping') {
                     this.energy = Math.min(100, this.energy + 60);
                 } else if (this.state === 'relaxing') {
                     this.mood = Math.min(100, this.mood + 20);
+                } else if (this.state === 'toilet') {
+                    this.bladder = 100;
                 }
             }
         }
 
         // ===== Name Generator =====
         const nameData = {
-            surnames: ['王', '李', '张', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗'],
-            maleNames: ['伟', '强', '磊', '军', '杰', '涛', '明', '超', '勇', '鹏', '飞', '宇', '浩', '晨', '鑫', '龙', '辉', '波', '阳', '平'],
-            femaleNames: ['芳', '娟', '丽', '敏', '静', '秀', '英', '霞', '红', '梅', '萍', '燕', '玲', '丹', '莉', '颖', '雪', '莲', '芸', '芹']
+            surnames: ['王', '李', '张', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗', '梁', '宋', '郑', '谢', '韩', '唐', '冯', '于', '董', '萧', '程', '曹', '袁', '邓', '许', '傅', '沈', '曾', '彭', '吕'],
+            maleFirstNames: [
+                '子涵', '浩然', '俊杰', '子轩', '志强', '晓明', '建国', '伟民', '国栋', '文博',
+                '天佑', '明轩', '思源', '景程', '煜祺', '博文', '昊天', '宇轩', '智辉', '嘉懿',
+                '俊熙', '瑞霖', '睿渊', '煜城', '明哲', '致远', '修杰', '弘文', '峻熙', '嘉俊'
+            ],
+            femaleFirstNames: [
+                '雨婷', '思怡', '欣怡', '紫萱', '梦琪', '佳怡', '雅琪', '晓燕', '秀英', '美玲',
+                '诗涵', '婉婷', '可馨', '梓萱', '雪儿', '静怡', '嘉欣', '语嫣', '晓彤', '梦瑶',
+                '雅芳', '慧敏', '嘉莹', '诗雅', '欣然', '婧怡', '思琪', '倩雯', '雨萱', '芷若'
+            ]
         };
 
         function generateRandomName(gender) {
             const surname = nameData.surnames[Math.floor(Math.random() * nameData.surnames.length)];
-            const names = gender === 'male' ? nameData.maleNames : nameData.femaleNames;
-            const givenName = names[Math.floor(Math.random() * names.length)] + names[Math.floor(Math.random() * names.length)];
-            return surname + givenName;
+            const firstNames = gender === 'male' ? nameData.maleFirstNames : nameData.femaleFirstNames;
+            const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+            return surname + firstName;
         }
 
         // ===== Job Configuration =====
@@ -1435,15 +1643,114 @@
             
             if (gameState.date.getDate() === 1) {
                 collectMonthlyRent();
+                payMonthlySalaries();
             }
             
             updateNewsTicker();
 
             npcs.forEach(npc => {
                 checkCollection(npc);
+                npc.dailyLog = []; // Reset daily log each day
             });
+            
+            // Random events
+            if (Math.random() < 0.3 && npcs.length > 0) {
+                triggerRandomEvent();
+            }
+            
+            // NPC interactions
+            if (Math.random() < 0.2 && npcs.length >= 2) {
+                triggerNPCInteraction();
+            }
 
             saveGame();
+        }
+        
+        function payMonthlySalaries() {
+            npcs.forEach(npc => {
+                if (npc.job !== '无业') {
+                    npc.money += npc.salary;
+                    npc.addDailyLog(`收到工资 +${npc.salary}元`);
+                }
+            });
+        }
+        
+        function triggerRandomEvent() {
+            const events = [
+                {
+                    name: 'BP机号码错误',
+                    desc: (npc) => `${npc.name}的BP机收到了错误号码，引发了一场乌龙`,
+                    effect: (npc) => { npc.mood = Math.max(0, npc.mood - 10); }
+                },
+                {
+                    name: '公用电话占线',
+                    desc: (npc) => `${npc.name}等公用电话等了半小时`,
+                    effect: (npc) => { npc.mood = Math.max(0, npc.mood - 15); }
+                },
+                {
+                    name: '楼下烧烤聚会',
+                    desc: (npc) => `${npc.name}参加了楼下的烧烤聚会`,
+                    effect: (npc) => { npc.mood = Math.min(100, npc.mood + 20); npc.hunger = Math.min(100, npc.hunger + 30); }
+                },
+                {
+                    name: '捡到钱包',
+                    desc: (npc) => `${npc.name}在路上捡到了一个钱包，里面有50元`,
+                    effect: (npc) => { npc.money += 50; npc.mood = Math.min(100, npc.mood + 10); }
+                },
+                {
+                    name: '突然加班',
+                    desc: (npc) => `${npc.name}被要求突然加班`,
+                    effect: (npc) => { if (npc.job !== '无业') { npc.energy = Math.max(0, npc.energy - 30); npc.money += 100; } }
+                }
+            ];
+            
+            const npc = npcs[Math.floor(Math.random() * npcs.length)];
+            const event = events[Math.floor(Math.random() * events.length)];
+            
+            event.effect(npc);
+            npc.addDailyLog(event.name);
+            showNotification(`📰 ${event.desc(npc)}`);
+        }
+        
+        function triggerNPCInteraction() {
+            if (npcs.length < 2) return;
+            
+            const npc1 = npcs[Math.floor(Math.random() * npcs.length)];
+            let npc2 = npcs[Math.floor(Math.random() * npcs.length)];
+            while (npc2.id === npc1.id && npcs.length > 1) {
+                npc2 = npcs[Math.floor(Math.random() * npcs.length)];
+            }
+            
+            const interactions = [
+                {
+                    desc: `${npc1.name}和${npc2.name}在走廊上闲聊了几句`,
+                    effect: () => {
+                        npc1.mood = Math.min(100, npc1.mood + 5);
+                        npc2.mood = Math.min(100, npc2.mood + 5);
+                        if (!npc1.friends.includes(npc2.name)) npc1.friends.push(npc2.name);
+                        if (!npc2.friends.includes(npc1.name)) npc2.friends.push(npc1.name);
+                    }
+                },
+                {
+                    desc: `${npc1.name}帮${npc2.name}代收了快递`,
+                    effect: () => {
+                        npc1.mood = Math.min(100, npc1.mood + 3);
+                        npc2.mood = Math.min(100, npc2.mood + 8);
+                    }
+                },
+                {
+                    desc: `${npc1.name}和${npc2.name}因为洗衣机使用发生了小争执`,
+                    effect: () => {
+                        npc1.mood = Math.max(0, npc1.mood - 10);
+                        npc2.mood = Math.max(0, npc2.mood - 10);
+                    }
+                }
+            ];
+            
+            const interaction = interactions[Math.floor(Math.random() * interactions.length)];
+            interaction.effect();
+            npc1.addDailyLog(interaction.desc);
+            npc2.addDailyLog(interaction.desc);
         }
 
         function collectMonthlyRent() {
@@ -1637,7 +1944,7 @@
             const npc = npcs.find(n => n.currentRoom === room.id);
             let html = `<div class="dialog-title">🏠 房间 ${room.id} 详情</div>`;
             
-            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div style="text-align:left;margin:10px 0;max-height:400px;overflow-y:auto;">`;
             html += `<div>📐 面积: ${room.area}㎡</div>`;
             html += `<div>💵 租金: ${room.rent}元/月</div>`;
             html += `<div>🪑 舒适度: ${room.comfort}</div>`;
@@ -1650,18 +1957,63 @@
             
             if (npc) {
                 html += `<hr style="margin:10px 0;border-color:var(--screen-dark)">`;
-                html += `<div>👤 租客: ${npc.name}</div>`;
-                html += `<div>💼 职业: ${npc.job}</div>`;
-                html += `<div>💰 月薪: ${npc.salary}元</div>`;
-                html += `<div>💳 余额: ${npc.money}元</div>`;
-                html += `<div>📊 状态: ${npc.state}</div>`;
-                html += `<div>🍜 饥饿: ${Math.floor(npc.hunger)}%</div>`;
-                html += `<div>⚡ 精力: ${Math.floor(npc.energy)}%</div>`;
+                const genderIcon = npc.gender === 'male' ? '👨' : '👩';
+                html += `<div><strong>${genderIcon} ${npc.name}</strong> (${npc.age}岁)</div>`;
+                html += `<div>💼 职业: ${npc.job} | 月薪: ${npc.salary}元</div>`;
+                html += `<div>💰 存款: ${npc.money}元 | 颜值: ${npc.appearance}/100</div>`;
+                html += `<div>🏠 家境: ${npc.familyBackground.level} (${npc.familyBackground.description})</div>`;
+                html += `<div>👔 父母: ${npc.familyBackground.parentJobs.join(' & ')}</div>`;
+                html += `<div>💎 固定资产: ${npc.fixedAssets}元</div>`;
+                
+                html += `<div style="margin-top:8px;"><strong>生理需求:</strong></div>`;
+                html += `<div>🍜 饥饿: ${Math.floor(npc.hunger)}% | 💧 口渴: ${Math.floor(npc.thirst)}%</div>`;
+                html += `<div>⚡ 精力: ${Math.floor(npc.energy)}% | 🚽 如厕: ${Math.floor(npc.bladder)}%</div>`;
                 html += `<div>😊 心情: ${Math.floor(npc.mood)}%</div>`;
                 
-                if (npc.hasDebt) {
-                    html += `<div style="color:#c0392b">⚠️ 欠租状态！</div>`;
+                html += `<div style="margin-top:8px;"><strong>感情状况:</strong></div>`;
+                const marriageStatus = npc.isMarried ? `💍 已婚 (配偶: ${npc.spouse})` : '💔 单身';
+                html += `<div>${marriageStatus}</div>`;
+                html += `<div>💋 初吻: ${npc.firstKiss || '未发生'}</div>`;
+                html += `<div>🌸 ${npc.isVirgin ? '是' : '否'}处子之身</div>`;
+                
+                if (npc.children && npc.children.length > 0) {
+                    html += `<div>👶 子女: ${npc.children.length}人</div>`;
                 }
+                
+                if (npc.friends && npc.friends.length > 0) {
+                    html += `<div>👥 好友: ${npc.friends.join(', ')}</div>`;
+                }
+                
+                html += `<div style="margin-top:8px;"><strong>当前目标:</strong></div>`;
+                html += `<div>🎯 ${npc.currentGoal}</div>`;
+                
+                if (npc.inventory && npc.inventory.length > 0) {
+                    html += `<div style="margin-top:8px;"><strong>🎒 背包物品:</strong></div>`;
+                    html += `<div>${npc.inventory.join(', ')}</div>`;
+                }
+                
+                if (npc.dailyLog && npc.dailyLog.length > 0) {
+                    html += `<div style="margin-top:8px;"><strong>📝 今日动态 (最近5条):</strong></div>`;
+                    const recentLogs = npc.dailyLog.slice(-5);
+                    recentLogs.forEach(log => {
+                        html += `<div style="font-size:11px;">⏰ ${log.time} - ${log.action}</div>`;
+                    });
+                }
+                
+                if (npc.hasDebt) {
+                    html += `<div style="color:#c0392b;margin-top:8px;">⚠️ 欠租状态！</div>`;
+                }
+                
+                // Add interaction buttons
+                html += `<div style="margin-top:12px;">`;
+                html += `<button class="close-btn" style="background:var(--accent-blue);margin:2px;" onclick="interactWithNPC(${npc.id}, 'chat')">💬 聊天</button>`;
+                if (!npc.isMarried && npc.affection >= 50) {
+                    html += `<button class="close-btn" style="background:var(--accent-gold);margin:2px;" onclick="interactWithNPC(${npc.id}, 'date')">💑 约会</button>`;
+                }
+                if (!npc.isMarried && npc.affection >= 80) {
+                    html += `<button class="close-btn" style="background:#e74c3c;margin:2px;" onclick="interactWithNPC(${npc.id}, 'confess')">💖 告白</button>`;
+                }
+                html += `</div>`;
             }
             
             html += `</div>`;
@@ -1854,6 +2206,115 @@
 
         function handleFurniturePurchase(name) {
             showNotification('请先选择一个房间\n然后购买家具');
+        }
+
+        // ===== NPC Interaction System =====
+        function interactWithNPC(npcId, actionType) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            playSound('click');
+            
+            if (actionType === 'chat') {
+                handleChat(npc);
+            } else if (actionType === 'date') {
+                handleDate(npc);
+            } else if (actionType === 'confess') {
+                handleConfess(npc);
+            }
+        }
+        
+        function handleChat(npc) {
+            const topics = [
+                { text: '聊聊工作', affection: 5 },
+                { text: '聊聊爱好', affection: 8 },
+                { text: '聊聊家人', affection: 10 }
+            ];
+            
+            const topic = topics[Math.floor(Math.random() * topics.length)];
+            npc.affection = Math.min(100, npc.affection + topic.affection);
+            npc.mood = Math.min(100, npc.mood + 10);
+            npc.addDailyLog(`与房东聊天 (+${topic.affection}好感)`);
+            
+            const responses = [
+                `${npc.name}："${topic.text}吗？我也很感兴趣！"`,
+                `${npc.name}开心地和你聊了起来`,
+                `你们聊得很投机，${npc.name}心情不错`
+            ];
+            
+            showNotification(responses[Math.floor(Math.random() * responses.length)] + `\n💖好感度: ${npc.affection}/100`);
+            closeDialog();
+            updateUI();
+        }
+        
+        function handleDate(npc) {
+            if (gameState.money < 100) {
+                showNotification('💸 资金不足！约会至少需要100元');
+                return;
+            }
+            
+            const dateEvents = [
+                { name: '录像厅看《大话西游》', cost: 60, affection: 15, desc: '你们在录像厅看了一场《大话西游》' },
+                { name: 'BP机寻宝游戏', cost: 50, affection: 12, desc: '你们玩了一场有趣的BP机寻宝游戏' },
+                { name: '家电城闲逛', cost: 30, affection: 10, desc: '你们一起去家电城看新款电器' }
+            ];
+            
+            const event = dateEvents[Math.floor(Math.random() * dateEvents.length)];
+            
+            gameState.money -= event.cost;
+            npc.affection = Math.min(100, npc.affection + event.affection);
+            npc.mood = Math.min(100, npc.mood + 20);
+            npc.addDailyLog(`约会：${event.name}`);
+            
+            showNotification(`💑 ${event.desc}\n花费：${event.cost}元\n💖好感度: ${npc.affection}/100`);
+            closeDialog();
+            updateUI();
+        }
+        
+        function handleConfess(npc) {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            
+            let html = `<div class="dialog-title">💖 向${npc.name}告白</div>`;
+            html += `<div style="text-align:center;margin:20px 0;">`;
+            html += `<div style="font-size:16px;margin-bottom:15px;">🌟 在天台烛光下...</div>`;
+            html += `<div style="margin:10px 0;">选择你的告白方式：</div>`;
+            html += `</div>`;
+            
+            html += `<button class="close-btn" style="background:#e74c3c;margin:5px;" onclick="doConfess(${npc.id}, 1)">💐 "我喜欢你，做我女朋友吧"</button>`;
+            html += `<button class="close-btn" style="background:#e74c3c;margin:5px;" onclick="doConfess(${npc.id}, 2)">🌹 "从第一次见你，我就心动了"</button>`;
+            html += `<button class="close-btn" style="background:#95a5a6;margin:5px;" onclick="closeDialog()">❌ 放弃告白</button>`;
+            
+            box.innerHTML = html;
+        }
+        
+        function doConfess(npcId, choice) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            const successChance = npc.affection / 100 * 0.8 + (npc.appearance > 50 ? 0.1 : 0);
+            const success = Math.random() < successChance || npc.affection >= 90;
+            
+            if (success) {
+                npc.loveHistory.push({ type: 'relationship_start', date: new Date(gameState.date) });
+                npc.firstKiss = npc.firstKiss || formatDate(gameState.date);
+                npc.affection = 100;
+                npc.mood = 100;
+                npc.addDailyLog(`接受了告白 💖`);
+                
+                showNotification(`💕 ${npc.name}害羞地答应了！\n你们正式成为情侣！\n💋 初吻记录已更新`);
+                playSound('success');
+            } else {
+                npc.affection = Math.max(0, npc.affection - 20);
+                npc.mood = Math.max(0, npc.mood - 30);
+                npc.addDailyLog(`婉拒了告白`);
+                
+                showNotification(`💔 ${npc.name}："对不起，我们还是做朋友吧..."\n好感度-20`);
+                playSound('error');
+            }
+            
+            closeDialog();
+            updateUI();
         }
 
         function closeDialog() {
