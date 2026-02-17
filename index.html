@@ -668,9 +668,9 @@
                     <span class="dock-icon">📟</span>
                     <span class="dock-label">BP机</span>
                 </button>
-                <button class="dock-btn" onclick="showCollection()">
-                    <span class="dock-icon">📚</span>
-                    <span class="dock-label">图鉴</span>
+                <button class="dock-btn" onclick="showQQChatRoom()">
+                    <span class="dock-icon">💬</span>
+                    <span class="dock-label">QQ</span>
                 </button>
                 <button class="dock-btn" onclick="showSystemMenu()">
                     <span class="dock-icon">⚙️</span>
@@ -1108,6 +1108,116 @@
             closeDialog();
             updateUI();
         }
+        
+        // ===== QQ Chat Room System =====
+        function showQQChatRoom() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">💬 QQ聊天室 - 碧海银沙</div>`;
+            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div style="margin-bottom:10px;color:var(--accent-blue);">🌐 在线用户</div>`;
+            
+            if (npcs.length === 0) {
+                html += `<div style="color:var(--accent-blue);margin:20px 0;text-align:center;">暂无在线用户</div>`;
+            } else {
+                // Show online NPCs (those who are home in the evening)
+                const onlineNPCs = npcs.filter(npc => {
+                    const hour = gameState.currentHour;
+                    return (hour >= 19 && hour <= 23) && npc.isHome;
+                });
+                
+                if (onlineNPCs.length === 0) {
+                    html += `<div style="color:var(--accent-blue);margin:20px 0;text-align:center;">暂无在线用户（19:00-23:00上线高峰期）</div>`;
+                } else {
+                    onlineNPCs.forEach(npc => {
+                        const avatars = ['😀', '😊', '😎', '🤓', '😺', '🐶', '🐼', '🦁'];
+                        const avatar = avatars[npc.id % avatars.length];
+                        html += `
+                            <div class="applicant-card" style="cursor:pointer;" onclick="chatWithNPCInQQ(${npc.id})">
+                                <div class="applicant-name">${avatar} ${npc.name}  ${npc.gender === 'male' ? '♂' : '♀'}</div>
+                                <div class="applicant-info">💬 在线中 | 好感度: ${npc.affection}/100</div>
+                            </div>
+                        `;
+                    });
+                }
+            }
+            
+            html += `</div>`;
+            html += `<div style="margin:10px 0;padding:10px;background:var(--card-bg);border-radius:5px;font-size:11px;">`;
+            html += `<div>💡 提示：租客在19:00-23:00会上线聊天</div>`;
+            html += `<div>💡 聊天可以增加好感度</div>`;
+            html += `</div>`;
+            html += `<button class="close-btn" onclick="closeDialog()">关闭</button>`;
+
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+        
+        function chatWithNPCInQQ(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">💬 与 ${npc.name} 聊天</div>`;
+            html += `<div style="margin:15px 0;text-align:left;background:var(--card-bg);padding:10px;border-radius:5px;max-height:200px;overflow-y:auto;">`;
+            
+            // Show some chat history
+            const chatTopics = [
+                { you: '在做什么呢？', them: '刚吃完晚饭，在听收音机' },
+                { you: '今天过得怎么样？', them: '还不错，工作很顺利' },
+                { you: '周末有什么计划？', them: '想去公园走走' }
+            ];
+            
+            const topic = chatTopics[Math.floor(Math.random() * chatTopics.length)];
+            
+            html += `<div style="margin:5px 0;"><strong>你：</strong>${topic.you}</div>`;
+            html += `<div style="margin:5px 0;"><strong>${npc.name}：</strong>${topic.them}</div>`;
+            html += `</div>`;
+            
+            html += `<div style="margin:15px 0;">选择聊天话题：</div>`;
+            
+            const topics = [
+                { text: '聊聊工作', affection: 5 },
+                { text: '分享趣事', affection: 8 },
+                { text: '聊聊人生理想', affection: 12 },
+                { text: '发送表情包', affection: 6 }
+            ];
+            
+            topics.forEach((t, idx) => {
+                html += `<button class="close-btn" style="margin:5px;" onclick="processQQChat(${npcId}, ${idx})">
+                    ${t.text} (+${t.affection}💖)
+                </button>`;
+            });
+            
+            html += `<button class="close-btn" style="margin-top:10px;background:var(--accent-blue)" onclick="showQQChatRoom()">返回聊天室</button>`;
+            
+            window.qqTopics = topics;
+            box.innerHTML = html;
+        }
+        
+        function processQQChat(npcId, topicIdx) {
+            const npc = npcs.find(n => n.id === npcId);
+            const topic = window.qqTopics[topicIdx];
+            
+            npc.affection = Math.min(100, npc.affection + topic.affection);
+            npc.mood = Math.min(100, npc.mood + 10);
+            npc.addDailyLog(`QQ聊天: ${topic.text}`);
+            
+            const reactions = [
+                `${npc.name}发来一个笑脸表情`,
+                `${npc.name}："聊得很开心！"`,
+                `${npc.name}觉得你很有趣`,
+                `你们聊得很投机`
+            ];
+            
+            showNotification(`💬 ${reactions[Math.floor(Math.random() * reactions.length)]}\n💖好感度: ${npc.affection}/100`);
+            closeDialog();
+            updateUI();
+        }
 
         function showSystemMenu() {
             const overlay = document.getElementById('dialogOverlay');
@@ -1152,7 +1262,12 @@
             '书桌': { price: 150, icon: '📝', comfort: 10, desc: '学习效率提升' },
             '台灯': { price: 50, icon: '💡', comfort: 5, desc: '夜间照明' },
             '衣柜': { price: 300, icon: '👕', comfort: 10, desc: '存储空间' },
-            '收音机': { price: 100, icon: '📻', comfort: 8, desc: '获取新闻资讯' }
+            '收音机': { price: 100, icon: '📻', comfort: 8, desc: '获取新闻资讯' },
+            '婴儿床': { price: 200, icon: '👶', comfort: 8, desc: '养育婴儿必备' },
+            '学习桌': { price: 180, icon: '📚', comfort: 12, desc: '儿童学习专用' },
+            '玩具箱': { price: 80, icon: '🧸', comfort: 6, desc: '儿童娱乐' },
+            'BP机': { price: 150, icon: '📟', comfort: 5, desc: '即时通讯' },
+            '缝纫机': { price: 350, icon: '🧵', comfort: 8, desc: '居家必备' }
         };
 
         // ===== News System =====
@@ -1676,7 +1791,61 @@
         }
         
         function triggerRandomEvent() {
-            const events = [
+            const npc = npcs[Math.floor(Math.random() * npcs.length)];
+            
+            // Job-specific events
+            const jobEvents = {
+                '程序员': [
+                    {
+                        name: '通宵加班赶项目',
+                        desc: (npc) => `${npc.name}为了赶项目通宵加班，获得加班费200元`,
+                        effect: (npc) => { npc.energy = Math.max(0, npc.energy - 40); npc.money += 200; }
+                    },
+                    {
+                        name: '代码Bug修复成功',
+                        desc: (npc) => `${npc.name}成功修复了一个困扰很久的Bug`,
+                        effect: (npc) => { npc.mood = Math.min(100, npc.mood + 25); }
+                    }
+                ],
+                '教师': [
+                    {
+                        name: '家长会',
+                        desc: (npc) => `${npc.name}开完家长会，很累但收获满满`,
+                        effect: (npc) => { npc.energy = Math.max(0, npc.energy - 20); npc.mood = Math.min(100, npc.mood + 15); }
+                    },
+                    {
+                        name: '学生送礼物',
+                        desc: (npc) => `${npc.name}收到了学生送的教师节礼物`,
+                        effect: (npc) => { npc.mood = Math.min(100, npc.mood + 20); }
+                    }
+                ],
+                '医生': [
+                    {
+                        name: '抢救病人成功',
+                        desc: (npc) => `${npc.name}成功抢救了一位危重病人，获得奖金300元`,
+                        effect: (npc) => { npc.money += 300; npc.mood = Math.min(100, npc.mood + 30); npc.energy = Math.max(0, npc.energy - 25); }
+                    },
+                    {
+                        name: '值夜班',
+                        desc: (npc) => `${npc.name}值了一个夜班，很疲惫`,
+                        effect: (npc) => { npc.energy = Math.max(0, npc.energy - 35); npc.money += 150; }
+                    }
+                ],
+                '销售': [
+                    {
+                        name: '签下大单',
+                        desc: (npc) => `${npc.name}签下一个大单，获得提成500元！`,
+                        effect: (npc) => { npc.money += 500; npc.mood = Math.min(100, npc.mood + 35); }
+                    },
+                    {
+                        name: '扫楼推销',
+                        desc: (npc) => `${npc.name}挨家挨户扫楼推销，很辛苦`,
+                        effect: (npc) => { npc.energy = Math.max(0, npc.energy - 30); }
+                    }
+                ]
+            };
+            
+            const generalEvents = [
                 {
                     name: 'BP机号码错误',
                     desc: (npc) => `${npc.name}的BP机收到了错误号码，引发了一场乌龙`,
@@ -1698,14 +1867,30 @@
                     effect: (npc) => { npc.money += 50; npc.mood = Math.min(100, npc.mood + 10); }
                 },
                 {
-                    name: '突然加班',
-                    desc: (npc) => `${npc.name}被要求突然加班`,
-                    effect: (npc) => { if (npc.job !== '无业') { npc.energy = Math.max(0, npc.energy - 30); npc.money += 100; } }
+                    name: '录像带归还纠纷',
+                    desc: (npc) => `${npc.name}借的录像带被说没还，产生了纠纷`,
+                    effect: (npc) => { npc.mood = Math.max(0, npc.mood - 20); npc.money -= 30; }
+                },
+                {
+                    name: '买到打折商品',
+                    desc: (npc) => `${npc.name}在超市买到了打折商品，很开心`,
+                    effect: (npc) => { npc.mood = Math.min(100, npc.mood + 15); }
+                },
+                {
+                    name: '自行车坏了',
+                    desc: (npc) => `${npc.name}的自行车坏了，在车棚修了半天`,
+                    effect: (npc) => { npc.energy = Math.max(0, npc.energy - 15); npc.money -= 20; }
                 }
             ];
             
-            const npc = npcs[Math.floor(Math.random() * npcs.length)];
-            const event = events[Math.floor(Math.random() * events.length)];
+            let event;
+            // 50% chance for job-specific event if applicable
+            if (jobEvents[npc.job] && Math.random() < 0.5) {
+                const jobSpecificEvents = jobEvents[npc.job];
+                event = jobSpecificEvents[Math.floor(Math.random() * jobSpecificEvents.length)];
+            } else {
+                event = generalEvents[Math.floor(Math.random() * generalEvents.length)];
+            }
             
             event.effect(npc);
             npc.addDailyLog(event.name);
@@ -2013,6 +2198,12 @@
                 if (!npc.isMarried && npc.affection >= 80) {
                     html += `<button class="close-btn" style="background:#e74c3c;margin:2px;" onclick="interactWithNPC(${npc.id}, 'confess')">💖 告白</button>`;
                 }
+                if (!npc.isMarried && npc.affection >= 95 && room.furniture.includes('双人床')) {
+                    html += `<button class="close-btn" style="background:#9b59b6;margin:2px;" onclick="proposeMarriage(${npc.id})">💍 求婚</button>`;
+                }
+                if (npc.isMarried && npc.children.length === 0 && room.area >= 25) {
+                    html += `<button class="close-btn" style="background:#3498db;margin:2px;" onclick="applyBirthPermit(${npc.id})">👶 办准生证</button>`;
+                }
                 html += `</div>`;
             }
             
@@ -2314,6 +2505,123 @@
             }
             
             closeDialog();
+            updateUI();
+        }
+        
+        // ===== Marriage System =====
+        function proposeMarriage(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc || npc.isMarried) return;
+            
+            const room = buildings.find(b => b.id === npc.currentRoom);
+            if (!room || !room.furniture.includes('双人床')) {
+                showNotification('💔 需要购买双人床才能结婚！');
+                return;
+            }
+            
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            
+            let html = `<div class="dialog-title">💍 向${npc.name}求婚</div>`;
+            html += `<div style="text-align:center;margin:20px 0;">`;
+            html += `<div style="font-size:14px;margin-bottom:15px;">💐 婚礼流程</div>`;
+            html += `<div style="text-align:left;margin:10px;">`;
+            html += `<div>1️⃣ 家长见面（居委会办公室）</div>`;
+            html += `<div>2️⃣ 彩礼与嫁妆（三转一响）</div>`;
+            html += `<div>   - 自行车 🚲</div>`;
+            html += `<div>   - 缝纫机 🧵</div>`;
+            html += `<div>   - 手表 ⌚</div>`;
+            html += `<div>   - 收音机 📻</div>`;
+            html += `<div>3️⃣ 街道办登记（工本费9元）</div>`;
+            html += `<div>4️⃣ 社区婚宴（摆桌酒席500元）</div>`;
+            html += `<div>5️⃣ 房间合并（5000元装修费）</div>`;
+            html += `</div>`;
+            html += `<div style="margin-top:10px;font-weight:bold;">总费用: 约6000元</div>`;
+            html += `</div>`;
+            
+            const canAfford = gameState.money >= 6000;
+            if (canAfford) {
+                html += `<button class="close-btn" style="background:#e74c3c;margin:5px;" onclick="completeMarriage(${npc.id})">💍 举办婚礼</button>`;
+            } else {
+                html += `<div style="color:#c0392b;margin:10px;">⚠️ 资金不足</div>`;
+            }
+            html += `<button class="close-btn" style="background:#95a5a6;margin:5px;" onclick="closeDialog()">❌ 取消</button>`;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+        }
+        
+        function completeMarriage(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            gameState.money -= 6000;
+            npc.isMarried = true;
+            npc.spouse = '房东';
+            npc.isVirgin = false;
+            npc.mood = 100;
+            npc.affection = 100;
+            npc.loveHistory.push({ type: 'married', date: new Date(gameState.date), spouse: '房东' });
+            npc.addDailyLog('结婚了！💒');
+            
+            showNotification(`💒 恭喜！你和${npc.name}结婚了！\n婚礼费用: 6000元\n💍 婚姻幸福！`);
+            playSound('success');
+            closeDialog();
+            updateUI();
+        }
+        
+        // ===== Children System =====
+        function applyBirthPermit(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc || !npc.isMarried) {
+                showNotification('❌ 只有已婚租客才能申请准生证');
+                return;
+            }
+            
+            const room = buildings.find(b => b.id === npc.currentRoom);
+            if (!room || room.area < 25) {
+                showNotification('❌ 房间面积需要≥25㎡才能生育');
+                return;
+            }
+            
+            if (gameState.money < 5) {
+                showNotification('💸 资金不足！准生证工本费5元');
+                return;
+            }
+            
+            gameState.money -= 5;
+            
+            setTimeout(() => {
+                haveBaby(npc);
+            }, 3000);
+            
+            showNotification(`📋 已为${npc.name}办理准生证（5元）\n🤰 等待生育...`);
+        }
+        
+        function haveBaby(npc) {
+            const babyGender = Math.random() > 0.5 ? 'male' : 'female';
+            const babyName = generateRandomName(babyGender);
+            
+            const baby = {
+                name: babyName,
+                gender: babyGender,
+                age: 0,
+                birthDate: new Date(gameState.date),
+                parent: npc.name
+            };
+            
+            npc.children.push(baby);
+            npc.mood = Math.min(100, npc.mood + 30);
+            npc.addDailyLog(`生了个${babyGender === 'male' ? '儿子' : '女儿'}: ${babyName}`);
+            
+            const room = buildings.find(b => b.id === npc.currentRoom);
+            if (room && !room.furniture.includes('婴儿床')) {
+                showNotification(`👶 ${npc.name}生了个${babyGender === 'male' ? '儿子' : '女儿'}！\n名字: ${babyName}\n💡 建议购买婴儿床`);
+            } else {
+                showNotification(`👶 ${npc.name}生了个${babyGender === 'male' ? '儿子' : '女儿'}！\n名字: ${babyName}`);
+            }
+            
+            playSound('success');
             updateUI();
         }
 
