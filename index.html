@@ -713,10 +713,30 @@
                     personality: npc.personality,
                     age: npc.age,
                     gender: npc.gender,
+                    appearance: npc.appearance,
                     hunger: npc.hunger,
                     energy: npc.energy,
                     mood: npc.mood,
+                    thirst: npc.thirst,
+                    bladder: npc.bladder,
                     money: npc.money,
+                    familyBackground: npc.familyBackground,
+                    fixedAssets: npc.fixedAssets,
+                    liquidAssets: npc.liquidAssets,
+                    relationships: npc.relationships,
+                    friends: npc.friends,
+                    crushes: npc.crushes,
+                    admirers: npc.admirers,
+                    enemies: npc.enemies,
+                    isVirgin: npc.isVirgin,
+                    firstKiss: npc.firstKiss,
+                    isMarried: npc.isMarried,
+                    spouse: npc.spouse,
+                    children: npc.children,
+                    loveHistory: npc.loveHistory,
+                    inventory: npc.inventory,
+                    currentGoal: npc.currentGoal,
+                    dailyLog: npc.dailyLog,
                     state: npc.state,
                     currentRoom: npc.currentRoom,
                     isHome: npc.isHome,
@@ -725,12 +745,13 @@
                     workEndHour: npc.workEndHour,
                     furniture: npc.furniture,
                     canMarry: npc.canMarry,
-                    isAdvancedProgrammer: npc.isAdvancedProgrammer
+                    isAdvancedProgrammer: npc.isAdvancedProgrammer,
+                    affection: npc.affection
                 })),
                 collection: collectionData,
                 currentNewsIndex: currentNewsIndex,
                 activeNewsEffect: activeNewsEffect,
-                version: '1.0'
+                version: '2.0'
             };
 
             try {
@@ -1978,6 +1999,9 @@
                 showNotification(`⚠️ ${debtCount}位租客拖欠房租！`);
                 playSound('error');
             }
+            
+            // Process career growth
+            processCareerGrowth();
         }
 
         function showNotificationWithEffect(message, isCoin) {
@@ -2203,6 +2227,9 @@
                 }
                 if (npc.isMarried && npc.children.length === 0 && room.area >= 25) {
                     html += `<button class="close-btn" style="background:#3498db;margin:2px;" onclick="applyBirthPermit(${npc.id})">👶 办准生证</button>`;
+                }
+                if (npc.job !== '无业') {
+                    html += `<button class="close-btn" style="background:#27ae60;margin:2px;" onclick="showCareerMenu(${npc.id})">💼 职业</button>`;
                 }
                 html += `</div>`;
             }
@@ -2623,6 +2650,85 @@
             
             playSound('success');
             updateUI();
+        }
+        
+        // ===== Career System =====
+        function showCareerMenu(npcId) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            
+            let html = `<div class="dialog-title">💼 ${npc.name} 的职业发展</div>`;
+            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div>当前职业: ${npc.job}</div>`;
+            html += `<div>当前月薪: ${npc.salary}元</div>`;
+            html += `</div>`;
+            
+            // Show available job transfers
+            html += `<div style="margin:15px 0;"><strong>可转职业（需500元手续费）：</strong></div>`;
+            
+            Object.keys(jobConfig).forEach(job => {
+                if (job === npc.job || job === '无业' || job === '高级程序员') return;
+                const config = jobConfig[job];
+                const salary = config.base + Math.floor(Math.random() * 500);
+                
+                html += `
+                    <div class="applicant-card" style="cursor:pointer;" onclick="transferJob(${npc.id}, '${job}', ${salary})">
+                        <div class="applicant-name">${job}</div>
+                        <div class="applicant-info">预期月薪: ${salary}元 | 适应期: 3个月</div>
+                    </div>
+                `;
+            });
+            
+            html += `<button class="close-btn" style="margin-top:10px;" onclick="closeDialog()">关闭</button>`;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+        }
+        
+        function transferJob(npcId, newJob, newSalary) {
+            const npc = npcs.find(n => n.id === npcId);
+            if (!npc) return;
+            
+            if (gameState.money < 500) {
+                showNotification('💸 资金不足！转职需要500元手续费');
+                return;
+            }
+            
+            gameState.money -= 500;
+            const oldJob = npc.job;
+            npc.job = newJob;
+            npc.salary = newSalary;
+            
+            const config = jobConfig[newJob];
+            npc.workStartHour = config.workStart;
+            npc.workEndHour = config.workEnd;
+            
+            npc.mood = Math.max(0, npc.mood - 20); // Nervous about new job
+            npc.addDailyLog(`转职从${oldJob}到${newJob}`);
+            
+            showNotification(`💼 ${npc.name}成功转职！\n${oldJob} → ${newJob}\n新月薪: ${newSalary}元\n手续费: 500元`);
+            playSound('success');
+            closeDialog();
+            updateUI();
+        }
+        
+        // Automatic salary growth based on work performance
+        function processCareerGrowth() {
+            npcs.forEach(npc => {
+                if (npc.job !== '无业' && Math.random() < 0.05) { // 5% chance monthly
+                    const config = jobConfig[npc.job];
+                    if (config && config.growth > 0) {
+                        const raise = Math.floor(npc.salary * config.growth * (0.5 + Math.random() * 0.5));
+                        npc.salary += raise;
+                        npc.mood = Math.min(100, npc.mood + 20);
+                        npc.addDailyLog(`加薪 +${raise}元`);
+                        showNotification(`🎉 ${npc.name}获得加薪！\n+${raise}元/月`);
+                    }
+                }
+            });
         }
 
         function closeDialog() {
