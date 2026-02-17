@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>千禧年房东模拟器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --device-gray: #2d2d2d;
+            --device-light: #4a4a4a;
+            --screen-bg: #9bbc0f;
+            --screen-dark: #0f380f;
+            --pixel-green: #8bac0f;
+            --pixel-light: #9bbc0f;
+            --accent-blue: #306230;
+            --accent-gold: #c9a227;
+            --text-primary: #0f380f;
+            --card-bg: #e8f5e9;
+            --card-border: #4caf50;
+            --debt-red: #c0392b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .pda-device {
+            width: 100%;
+            max-width: 380px;
+            height: 100vh;
+            max-height: 720px;
+            background: linear-gradient(145deg, #3d3d3d 0%, #2d2d2d 50%, #1d1d1d 100%);
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                inset 0 2px 4px rgba(255, 255, 255, 0.1),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pda-device::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 6px;
+            background: #1a1a1a;
+            border-radius: 3px;
+        }
+
+        .screen-container {
+            flex: 1;
+            background: var(--screen-bg);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 
+                inset 0 4px 12px rgba(0, 0, 0, 0.3),
+                0 1px 0 rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(15, 56, 15, 0.03) 2px,
+                rgba(15, 56, 15, 0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .news-ticker {
+            background: var(--screen-dark);
+            color: var(--screen-bg);
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 2px solid var(--accent-blue);
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .news-ticker-label {
+            background: var(--accent-gold);
+            color: var(--screen-dark);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-right: 8px;
+        }
+
+        .news-ticker-content {
+            display: inline-block;
+            animation: ticker 15s linear infinite;
+            font-size: 12px;
+        }
+
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--accent-blue);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px solid var(--screen-dark);
+        }
+
+        .status-time {
+            font-size: 18px;
+            color: var(--screen-bg);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-money {
+            font-size: 16px;
+            color: var(--screen-bg);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-money.deficit {
+            color: #e74c3c;
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+ .status-weather {
+            font-size: 20px;
+        }
+
+        .apartment-view {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            overflow-y: auto;
+            padding: 4px;
+            background: rgba(15, 56, 15, 0.1);
+            border-radius: 8px;
+            border: 2px solid var(--screen-dark);
+        }
+
+        .apartment-view::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .apartment-view::-webkit-scrollbar-track {
+            background: var(--pixel-green);
+            border-radius: 3px;
+        }
+
+        .apartment-view::-webkit-scrollbar-thumb {
+            background: var(--screen-dark);
+            border-radius: 3px;
+        }
+
+        .room-cell {
+            aspect-ratio: 1;
+            background: var(--pixel-light);
+            border: 2px solid var(--screen-dark);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .room-cell:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(15, 56, 15, 0.3);
+        }
+
+        .room-cell.rented {
+            background: var(--pixel-green);
+            border-color: var(--accent-blue);
+        }
+
+        .room-cell.npc-present {
+            box-shadow: inset 0 0 10px rgba(255, 255, 0, 0.2);
+        }
+
+        .room-cell.debt {
+            border-color: var(--debt-red);
+            animation: debt-flash 2s infinite;
+        }
+
+        @keyframes debt-flash {
+            0%, 100% { border-color: var(--screen-dark); }
+            50% { border-color: var(--debt-red); }
+        }
+
+        .room-number {
+            font-size: 14px;
+            color: var(--screen-dark);
+            position: absolute;
+            top: 4px;
+            left: 6px;
+        }
+
+        .room-icon {
+            font-size: 28px;
+            margin-bottom: 2px;
+        }
+
+        .room-status {
+            font-size: 11px;
+            color: var(--screen-dark);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .room-renter {
+            font-size: 9px;
+            color: var(--accent-blue);
+            margin-top: 2px;
+        }
+
+        .room-furniture {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 12px;
+            display: flex;
+            gap: 1px;
+        }
+
+        .room-debt-icon {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 12px;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .npc-emoji {
+            animation: bounce 1.5s ease-in-out infinite;
+        }
+
+        .npc-sleeping {
+            animation: breathe 2s ease-in-out infinite;
+        }
+
+        .npc-working {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .dock-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 12px 8px;
+            background: linear-gradient(180deg, #3d3d3d 0%, #2d2d2d 100%);
+            border-radius: 12px;
+            margin-top: 12px;
+            border: 1px solid #4a4a4a;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .dock-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            min-width: 50px;
+        }
+
+        .dock-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dock-btn:active {
+            transform: scale(0.95);
+        }
+
+        .dock-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .dock-label {
+            font-size: 10px;
+            color: #aaa;
+            font-family: 'VT323', monospace;
+        }
+
+        .notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--screen-dark);
+            color: var(--screen-bg);
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            text-align: center;
+            border: 2px solid var(--pixel-green);
+            max-width: 90%;
+            white-space: pre-line;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .notification.coin {
+            animation: coin-flip 0.5s ease-out;
+        }
+
+        @keyframes coin-flip {
+            0% { transform: translate(-50%, -50%) scale(0.5); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .dialog-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .dialog-overlay.show {
+            display: flex;
+        }
+
+        .dialog-box {
+            background: var(--screen-bg);
+            border: 3px solid var(--screen-dark);
+            border-radius: 12px;
+            padding: 16px;
+            max-width: 100%;
+            max-height: 85%;
+            overflow-y: auto;
+            text-align: center;
+            width: 100%;
+        }
+
+        .dialog-title {
+            font-size: 18px;
+            color: var(--screen-dark);
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--screen-dark);
+            padding-bottom: 8px;
+        }
+
+        .applicant-card, .furniture-card {
+            background: var(--pixel-green);
+            border: 2px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .applicant-card:hover, .furniture-card:hover {
+            transform: scale(1.02);
+            background: var(--accent-blue);
+            color: var(--screen-bg);
+        }
+
+        .applicant-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .applicant-name {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .applicant-info {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .applicant-tags {
+            font-size: 10px;
+            margin-top: 4px;
+        }
+
+        .close-btn {
+            background: var(--screen-dark);
+            color: var(--screen-bg);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-family: 'VT323', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .close-btn:hover {
+            background: var(--accent-blue);
+        }
+
+        .need-bars {
+            position: absolute;
+            bottom: 2px;
+            left: 4px;
+            right: 30px;
+            display: flex;
+            gap: 2px;
+            font-size: 8px;
+        }
+
+        .need-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--screen-dark);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .need-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .need-hunger { background: #ff6b6b; }
+        .need-energy { background: #4ecdc4; }
+        .need-mood { background: #ffe66d; }
+
+        .money-bar {
+            position: absolute;
+            bottom: 2px;
+            left: 4px;
+            right: 4px;
+            height: 6px;
+            background: var(--screen-dark);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .money-bar-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .money-positive { background: #2ecc71; }
+        .money-negative { background: #e74c3c; }
+
+        .lights-on {
+            box-shadow: inset 0 0 15px rgba(255, 220, 100, 0.3);
+        }
+
+        .rent-display {
+            font-size: 10px;
+            color: var(--accent-blue);
+            position: absolute;
+            bottom: 8px;
+        }
+
+        .float-text {
+            position: absolute;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 50;
+            animation: float-up 1.5s ease-out forwards;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .float-text.positive {
+            color: #2ecc71;
+        }
+
+        .float-text.negative {
+            color: #e74c3c;
+        }
+
+        @keyframes float-up {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) scale(1.2);
+            }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .collection-item {
+            background: var(--pixel-green);
+            border: 2px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            text-align: left;
+        }
+
+        .collection-item.locked {
+            opacity: 0.5;
+            background: var(--screen-dark);
+        }
+
+        .collection-item.unlocked {
+            background: var(--pixel-light);
+            border-color: var(--accent-gold);
+        }
+
+        .collection-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .collection-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--screen-dark);
+        }
+
+        .collection-desc {
+            font-size: 11px;
+            color: var(--accent-blue);
+            margin-top: 4px;
+        }
+
+        .collection-rarity {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        .rarity-common { background: #95a5a6; color: white; }
+        .rarity-rare { background: #3498db; color: white; }
+        .rarity-epic { background: #9b59b6; color: white; }
+        .rarity-legendary { background: #f39c12; color: white; }
+    </style>
+</head>
+<body>
+    <div class="pda-device">
+        <div class="screen-container">
+            <div class="scanline"></div>
+            
+            <div class="news-ticker">
+                <span class="news-ticker-label">📰 新闻</span>
+                <span class="news-ticker-content" id="newsTicker">正在加载新闻...</span>
+            </div>
+            
+            <div class="status-bar">
+                <div class="status-time">
+                    <span id="timeDisplay">🕐 2000-01-01</span>
+                    <span id="weekdayDisplay">周六</span>
+                </div>
+                <div class="status-money" id="moneyContainer">
+                    <span>💰</span>
+                    <span id="moneyDisplay">5000</span>
+                    <span>元</span>
+                </div>
+                <div class="status-weather">
+                    <span id="weatherIcon">☀️</span>
+                </div>
+            </div>
+
+            <div class="apartment-view" id="apartmentGrid">
+            </div>
+
+            <div class="dock-bar">
+                <button class="dock-btn" onclick="handleDockClick('rooms')">
+                    <span class="dock-icon">🏠</span>
+                    <span class="dock-label">房源</span>
+                </button>
+                <button class="dock-btn" onclick="handleDockClick('tenants')">
+                    <span class="dock-icon">👥</span>
+                    <span class="dock-label">租客</span>
+                </button>
+                <button class="dock-btn" onclick="showFurnitureShop()">
+                    <span class="dock-icon">🛒</span>
+                    <span class="dock-label">商店</span>
+                </button>
+                <button class="dock-btn" onclick="showCollection()">
+                    <span class="dock-icon">📚</span>
+                    <span class="dock-label">图鉴</span>
+                </button>
+                <button class="dock-btn" onclick="handleDockClick('events')">
+                    <span class="dock-icon">📋</span>
+                    <span class="dock-label">事件</span>
+                </button>
+                <button class="dock-btn" onclick="showSystemMenu()">
+                    <span class="dock-icon">⚙️</span>
+                    <span class="dock-label">系统</span>
+                </button>
+            </div>
+
+            <div class="notification" id="notification"></div>
+            
+            <div class="dialog-overlay" id="dialogOverlay">
+                <div class="dialog-box" id="dialogBox">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== Save System =====
+        const SAVE_KEY = 'millennium_landlord_save';
+        let autoSaveEnabled = true;
+
+        function saveGame() {
+            const saveData = {
+                gameState: {
+                    date: gameState.date.toISOString(),
+                    money: gameState.money,
+                    reputation: gameState.reputation,
+                    currentSeason: gameState.currentSeason,
+                    currentWeekday: gameState.currentWeekday,
+                    dayProgress: gameState.dayProgress,
+                    weather: gameState.weather,
+                    currentHour: gameState.currentHour
+                },
+                buildings: buildings,
+                npcs: npcs.map(npc => ({
+                    id: npc.id,
+                    name: npc.name,
+                    job: npc.job,
+                    salary: npc.salary,
+                    personality: npc.personality,
+                    age: npc.age,
+                    gender: npc.gender,
+                    hunger: npc.hunger,
+                    energy: npc.energy,
+                    mood: npc.mood,
+                    money: npc.money,
+                    state: npc.state,
+                    currentRoom: npc.currentRoom,
+                    isHome: npc.isHome,
+                    hasDebt: npc.hasDebt,
+                    workStartHour: npc.workStartHour,
+                    workEndHour: npc.workEndHour,
+                    furniture: npc.furniture,
+                    canMarry: npc.canMarry,
+                    isAdvancedProgrammer: npc.isAdvancedProgrammer
+                })),
+                collection: collectionData,
+                currentNewsIndex: currentNewsIndex,
+                activeNewsEffect: activeNewsEffect,
+                version: '1.0'
+            };
+
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+                console.log('💾 游戏已保存');
+            } catch (e) {
+                console.error('❌ 保存失败:', e);
+            }
+        }
+
+        function loadGame() {
+            try {
+                const saveString = localStorage.getItem(SAVE_KEY);
+                if (!saveString) {
+                    console.log('📂 未找到存档，开始新游戏');
+                    return false;
+                }
+
+                const saveData = JSON.parse(saveString);
+
+                gameState.date = new Date(saveData.gameState.date);
+                gameState.money = saveData.gameState.money;
+                gameState.reputation = saveData.gameState.reputation;
+                gameState.currentSeason = saveData.gameState.currentSeason;
+                gameState.currentWeekday = saveData.gameState.currentWeekday;
+                gameState.dayProgress = saveData.gameState.dayProgress;
+                gameState.weather = saveData.gameState.weather;
+                gameState.currentHour = saveData.gameState.currentHour;
+
+                buildings.length = 0;
+                buildings.push(...saveData.buildings);
+
+                npcs.length = 0;
+                saveData.npcs.forEach(npcData => {
+                    const npc = new NPC(npcData);
+                    Object.assign(npc, npcData);
+                    npcs.push(npc);
+                });
+
+                if (saveData.collection) {
+                    collectionData = saveData.collection;
+                }
+
+                currentNewsIndex = saveData.currentNewsIndex || 0;
+                activeNewsEffect = saveData.activeNewsEffect || null;
+
+                console.log('📂 存档加载成功');
+                return true;
+            } catch (e) {
+                console.error('❌ 加载失败:', e);
+                return false;
+            }
+        }
+
+        function exportSave() {
+            const saveData = {
+                gameState: {
+                    date: gameState.date.toISOString(),
+                    money: gameState.money,
+                    reputation: gameState.reputation,
+                    currentSeason: gameState.currentSeason,
+                    currentWeekday: gameState.currentWeekday,
+                    dayProgress: gameState.dayProgress,
+                    weather: gameState.weather,
+                    currentHour: gameState.currentHour
+                },
+                buildings: buildings,
+                npcs: npcs.map(npc => ({
+                    id: npc.id,
+                    name: npc.name,
+                    job: npc.job,
+                    salary: npc.salary,
+                    personality: npc.personality,
+                    age: npc.age,
+                    gender: npc.gender,
+                    hunger: npc.hunger,
+                    energy: npc.energy,
+                    mood: npc.mood,
+                    money: npc.money,
+                    state: npc.state,
+                    currentRoom: npc.currentRoom,
+                    isHome: npc.isHome,
+                    hasDebt: npc.hasDebt,
+                    workStartHour: npc.workStartHour,
+                    workEndHour: npc.workEndHour,
+                    furniture: npc.furniture,
+                    canMarry: npc.canMarry,
+                    isAdvancedProgrammer: npc.isAdvancedProgrammer
+                })),
+                collection: collectionData,
+                currentNewsIndex: currentNewsIndex,
+                activeNewsEffect: activeNewsEffect,
+                version: '1.0',
+                exportDate: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `千禧年房东模拟器_${formatDate(gameState.date)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification('📤 存档导出成功！');
+            playSound('success');
+        }
+
+        function importSave(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const saveData = JSON.parse(e.target.result);
+
+                    gameState.date = new Date(saveData.gameState.date);
+                    gameState.money = saveData.gameState.money;
+                    gameState.reputation = saveData.gameState.reputation;
+                    gameState.currentSeason = saveData.gameState.currentSeason;
+                    gameState.currentWeekday = saveData.gameState.currentWeekday;
+                    gameState.dayProgress = saveData.gameState.dayProgress;
+                    gameState.weather = saveData.gameState.weather;
+                    gameState.currentHour = saveData.gameState.currentHour;
+
+                    buildings.length = 0;
+                    buildings.push(...saveData.buildings);
+
+                    npcs.length = 0;
+                    saveData.npcs.forEach(npcData => {
+                        const npc = new NPC(npcData);
+                        Object.assign(npc, npcData);
+                        npcs.push(npc);
+                    });
+
+                    if (saveData.collection) {
+                        collectionData = saveData.collection;
+                    }
+
+                    currentNewsIndex = saveData.currentNewsIndex || 0;
+                    activeNewsEffect = saveData.activeNewsEffect || null;
+
+                    saveGame();
+                    updateUI();
+                    closeDialog();
+
+                    showNotification('📥 存档导入成功！');
+                    playSound('success');
+                } catch (error) {
+                    showNotification('❌ 导入失败：存档格式错误');
+                    console.error('导入失败:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ===== Sound System =====
+        let audioContext = null;
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                const sounds = {
+                    click: { freq: 800, duration: 0.1, type: 'square' },
+                    success: { freq: 600, duration: 0.15, type: 'sine' },
+                    error: { freq: 200, duration: 0.2, type: 'sawtooth' },
+                    coin: { freq: 1200, duration: 0.1, type: 'square' },
+                    notification: { freq: 500, duration: 0.2, type: 'sine' }
+                };
+
+                const sound = sounds[type] || sounds.click;
+                oscillator.type = sound.type;
+                oscillator.frequency.setValueAtTime(sound.freq, audioContext.currentTime);
+
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + sound.duration);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + sound.duration);
+            } catch (e) {
+                console.log('音效播放失败:', e);
+            }
+        }
+
+        // ===== Float Text System =====
+        function showFloatText(text, x, y, isPositive = true) {
+            const floatText = document.createElement('div');
+            floatText.className = `float-text ${isPositive ? 'positive' : 'negative'}`;
+            floatText.textContent = text;
+            floatText.style.left = `${x}px`;
+            floatText.style.top = `${y}px`;
+
+            document.querySelector('.screen-container').appendChild(floatText);
+
+            setTimeout(() => {
+                floatText.remove();
+            }, 1500);
+        }
+
+        // ===== Screen Shake System =====
+        function triggerShake() {
+            const screen = document.querySelector('.screen-container');
+            screen.classList.add('shake');
+
+            setTimeout(() => {
+                screen.classList.remove('shake');
+            }, 500);
+        }
+
+        // ===== Collection System =====
+        const specialTenants = [
+            { id: 'singer', name: '落魄歌手', icon: '🎤', rarity: 'rare', desc: '曾在地下乐队演出，梦想成为明星', condition: (npc) => npc.job === '无业' && npc.personality.tag === '开朗' },
+            { id: 'fugitive', name: '在逃嫌犯', icon: '🏃', rarity: 'legendary', desc: '神秘人物，身份不明', condition: (npc) => npc.personality.tag === '社恐' && npc.age > 30 },
+            { id: 'programmer', name: '黑客天才', icon: '💻', rarity: 'epic', desc: '精通计算机技术', condition: (npc) => npc.job === '程序员' && npc.salary > 4000 },
+            { id: 'teacher', name: '退休教师', icon: '👴', rarity: 'common', desc: '教书育人一辈子', condition: (npc) => npc.job === '教师' && npc.age > 50 },
+            { id: 'doctor', name: '名医', icon: '🩺', rarity: 'rare', desc: '医术高超，受人尊敬', condition: (npc) => npc.job === '医生' && npc.salary > 3000 },
+            { id: 'sales', name: '销售冠军', icon: '🏆', rarity: 'epic', desc: '业绩突出，收入丰厚', condition: (npc) => npc.job === '销售' && npc.salary > 2000 },
+            { id: 'freelancer', name: '自由艺术家', icon: '🎨', rarity: 'rare', desc: '追求艺术自由', condition: (npc) => npc.job === '自由职业' && npc.personality.tag === '开朗' },
+            { id: 'waiter', name: '勤劳服务员', icon: '🍽️', rarity: 'common', desc: '勤勤恳恳工作', condition: (npc) => npc.job === '服务员' && npc.personality.tag === '老实' },
+            { id: 'advanced_programmer', name: '技术总监', icon: '👨‍💼', rarity: 'legendary', desc: '技术大牛，领导团队', condition: (npc) => npc.job === '高级程序员' && npc.isAdvancedProgrammer },
+            { id: 'married_couple', name: '恩爱夫妻', icon: '💑', rarity: 'epic', desc: '幸福美满的一对', condition: (npc) => npc.canMarry && npc.age > 25 }
+        ];
+
+        let collectionData = {
+            unlocked: [],
+            totalSeen: 0
+        };
+
+        function checkCollection(npc) {
+            specialTenants.forEach(tenant => {
+                if (!collectionData.unlocked.includes(tenant.id) && tenant.condition(npc)) {
+                    collectionData.unlocked.push(tenant.id);
+                    collectionData.totalSeen++;
+
+                    const tenantInfo = specialTenants.find(t => t.id === tenant.id);
+                    showNotification(`🎉 解锁新图鉴：${tenantInfo.name}！\n${tenantInfo.desc}`);
+                    playSound('success');
+
+                    saveGame();
+                }
+            });
+        }
+
+        function showCollection() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">📚 房东图鉴</div>`;
+            html += `<div style="text-align:left;margin-bottom:10px;">已收集: ${collectionData.unlocked.length} / ${specialTenants.length}</div>`;
+
+            specialTenants.forEach(tenant => {
+                const isUnlocked = collectionData.unlocked.includes(tenant.id);
+                const rarityClass = `rarity-${tenant.rarity}`;
+
+                html += `
+                    <div class="collection-item ${isUnlocked ? 'unlocked' : 'locked'}">
+                        <div class="collection-icon">${isUnlocked ? tenant.icon : '❓'}</div>
+                        <div class="collection-name">${isUnlocked ? tenant.name : '???'}</div>
+                        ${isUnlocked ? `<div class="collection-desc">${tenant.desc}</div>` : ''}
+                        ${isUnlocked ? `<span class="collection-rarity ${rarityClass}">${tenant.rarity.toUpperCase()}</span>` : ''}
+                    </div>
+                `;
+            });
+
+            html += `<button class="close-btn" onclick="closeDialog()">关闭</button>`;
+
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+
+        function showSystemMenu() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+
+            let html = `<div class="dialog-title">⚙️ 系统菜单</div>`;
+            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div>📅 游戏日期: ${formatDate(gameState.date)}</div>`;
+            html += `<div>💰 当前资金: ${gameState.money}元</div>`;
+            html += `<div>🏠 房间数量: ${buildings.length}</div>`;
+            html += `<div>👥 租客数量: ${npcs.length}</div>`;
+            html += `<div>📚 图鉴收集: ${collectionData.unlocked.length}/${specialTenants.length}</div>`;
+            html += `</div>`;
+
+            html += `<button class="close-btn" onclick="exportSave()">📤 导出存档</button>`;
+            html += `<button class="close-btn" style="margin-left:10px;background:var(--accent-gold);color:var(--screen-dark)" onclick="document.getElementById('importFile').click()">📥 导入存档</button>`;
+            html += `<input type="file" id="importFile" accept=".json" style="display:none" onchange="importSave(this.files[0])">`;
+
+            html += `<button class="close-btn" style="margin-top:10px;background:#e74c3c" onclick="resetGame()">🔄 重置游戏</button>`;
+            html += `<button class="close-btn" style="margin-top:10px" onclick="closeDialog()">关闭</button>`;
+
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+
+        function resetGame() {
+            if (confirm('确定要重置游戏吗？所有进度将丢失！')) {
+                localStorage.removeItem(SAVE_KEY);
+                location.reload();
+            }
+        }
+
+        // ===== Furniture System =====
+        const furnitureCatalog = {
+            '56k调制解调器': { price: 800, icon: '📡', effect: 'allows_advanced_programmer', comfort: 10, desc: '可转职高级程序员' },
+            '双人床': { price: 400, icon: '🛏️', effect: 'allows_cohabitation', comfort: 15, desc: '允许同居/结婚' },
+            '防盗门': { price: 300, icon: '🔒', effect: 'prevent_robbery', comfort: 5, desc: '减少被盗概率' },
+            '空调': { price: 1200, icon: '❄️', comfort: 25, desc: '大幅提升舒适度' },
+            '电视': { price: 2500, icon: '📺', comfort: 20, desc: '提升心情恢复速度' },
+            '冰箱': { price: 800, icon: '🧊', comfort: 15, desc: '减少饥饿下降' },
+            '书桌': { price: 150, icon: '📝', comfort: 10, desc: '学习效率提升' },
+            '台灯': { price: 50, icon: '💡', comfort: 5, desc: '夜间照明' },
+            '衣柜': { price: 300, icon: '👕', comfort: 10, desc: '存储空间' },
+            '收音机': { price: 100, icon: '📻', comfort: 8, desc: '获取新闻资讯' }
+        };
+
+        // ===== News System =====
+        const newsEvents = [
+            { text: '千年虫危机平稳度过，全球计算机系统正常运行', date: '2000-01-01', effect: null },
+            { text: '周杰伦发布首张专辑《JAY》，掀起音乐新浪潮', date: '2000-11-01', effect: null },
+            { text: '北京申奥成功！2008年奥运会将在北京举行', date: '2001-07-13', effect: 'olympic_boost' },
+            { text: '互联网泡沫破裂！众多网络公司裁员', date: '2000-03-10', effect: 'dotcom_bubble' },
+            { text: '非典疫情预警！口罩和消毒液需求激增', date: '2003-04-01', effect: 'sars_warning' },
+            { text: '中国加入WTO，经济发展迎来新机遇', date: '2001-12-11', effect: 'economic_boost' },
+            { text: '房价持续上涨，购房压力增大', date: '2000-06-01', effect: 'rent_increase' },
+            { text: '手机普及率突破20%，进入移动通讯时代', date: '2001-03-01', effect: null },
+            { text: '高校扩招，大学毕业生数量创新高', date: '2000-06-01', effect: 'more_tenants' },
+            { text: '电脑城开业，买电脑更方便了', date: '2000-03-01', effect: null }
+        ];
+
+        let currentNewsIndex = 0;
+        let activeNewsEffect = null;
+
+        function updateNewsTicker() {
+            const ticker = document.getElementById('newsTicker');
+            const currentYear = gameState.date.getFullYear();
+            const currentMonth = gameState.date.getMonth() + 1;
+            const currentDay = gameState.date.getDate();
+            
+            let relevantNews = newsEvents.filter(news => {
+                const newsDate = new Date(news.date);
+                return newsDate <= gameState.date;
+            });
+
+            if (relevantNews.length > 0) {
+                const latestNews = relevantNews[relevantNews.length - 1];
+                ticker.textContent = latestNews.text;
+                applyNewsEffect(latestNews);
+            } else {
+                ticker.textContent = '千禧年伊始，万象更新...';
+            }
+        }
+
+        function applyNewsEffect(news) {
+            if (news.effect === 'dotcom_bubble' && !activeNewsEffect) {
+                activeNewsEffect = 'dotcom_bubble';
+                showNotification('⚠️ 经济事件：互联网泡沫破裂！\n程序员租客可能失业');
+                triggerShake();
+                playSound('error');
+            } else if (news.effect === 'sars_warning' && !activeNewsEffect) {
+                activeNewsEffect = 'sars_warning';
+                npcs.forEach(npc => npc.mood = Math.max(0, npc.mood - 20));
+                showNotification('⚠️ 紧急事件：非典预警！\n租客心情下降');
+                triggerShake();
+                playSound('error');
+            } else if (news.effect === 'olympic_boost') {
+                activeNewsEffect = 'olympic_boost';
+                showNotification('🎉 喜讯：北京申奥成功！\n经济将迎来发展');
+                playSound('success');
+            }
+        }
+
+        // ===== NPC Class =====
+        class NPC {
+            constructor(data) {
+                this.id = data.id || Date.now();
+                this.name = data.name;
+                this.job = data.job;
+                this.salary = data.salary;
+                this.personality = data.personality;
+                this.age = data.age || 22;
+                this.gender = data.gender || 'male';
+                
+                this.hunger = 80;
+                this.energy = 80;
+                this.mood = 80;
+                this.money = data.salary || 2000;
+                
+                this.state = 'idle';
+                this.currentRoom = null;
+                this.isHome = true;
+                this.hasDebt = false;
+                this.workStartHour = 9;
+                this.workEndHour = 18;
+                
+                this.furniture = [];
+                this.canMarry = false;
+                this.isAdvancedProgrammer = false;
+            }
+
+            getJobEmoji() {
+                const jobEmojis = {
+                    '程序员': '👨‍💻',
+                    '高级程序员': '👨‍💼',
+                    '教师': '👩‍🏫',
+                    '销售': '👨‍💼',
+                    '医生': '👨‍⚕️',
+                    '文员': '👩‍💻',
+                    '无业': '🧑',
+                    '自由职业': '🎨',
+                    '服务员': '👨‍🍳'
+                };
+                return jobEmojis[this.job] || '🧑';
+            }
+
+            getStateEmoji() {
+                const stateEmojis = {
+                    'idle': '🧘',
+                    'working': this.getJobEmoji(),
+                    'sleeping': '💤',
+                    'eating': '🍜',
+                    'bathing': '🚿',
+                    'relaxing': '📺',
+                    'out': '🚶',
+                    'unemployed': '😢'
+                };
+                return stateEmojis[this.state] || '🧘';
+            }
+
+            getAnimationClass() {
+                if (this.state === 'sleeping') return 'npc-sleeping';
+                if (this.state === 'working') return 'npc-working';
+                if (this.state === 'unemployed') return 'npc-sleeping';
+                return 'npc-emoji';
+            }
+
+            updateNeeds() {
+                this.hunger = Math.max(0, this.hunger - 0.5);
+                this.energy = Math.max(0, this.energy - 0.3);
+                this.mood = Math.max(0, this.mood - 0.2);
+
+                if (this.hunger < 30) {
+                    this.state = 'eating';
+                    this.eat();
+                } else if (this.energy < 20) {
+                    this.state = 'sleeping';
+                } else if (this.mood < 30) {
+                    this.state = 'relaxing';
+                }
+            }
+
+            eat() {
+                if (this.money >= 10) {
+                    this.money -= 10;
+                    this.hunger = Math.min(100, this.hunger + 40);
+                    this.mood = Math.min(100, this.mood + 5);
+                }
+            }
+
+            payRent(rentAmount) {
+                if (this.money >= rentAmount) {
+                    this.money -= rentAmount;
+                    this.hasDebt = false;
+                    return true;
+                } else {
+                    this.hasDebt = true;
+                    return false;
+                }
+            }
+
+            updateBehavior(hour, isWeekend) {
+                if (activeNewsEffect === 'dotcom_bubble' && this.job === '程序员') {
+                    if (Math.random() < 0.3) {
+                        this.job = '无业';
+                        this.state = 'unemployed';
+                        this.isHome = true;
+                        return;
+                    }
+                }
+
+                const isWorkHour = hour >= this.workStartHour && hour < this.workEndHour;
+                const isNight = hour >= 22 || hour < 6;
+                const isEvening = hour >= 18 && hour < 22;
+
+                if (this.job === '无业' || this.state === 'unemployed') {
+                    if (isNight) {
+                        this.state = 'sleeping';
+                        this.isHome = true;
+                    } else if (Math.random() < 0.3) {
+                        this.state = 'out';
+                        this.isHome = false;
+                    } else {
+                        this.state = 'idle';
+                        this.isHome = true;
+                    }
+                } else if (isWorkHour && !isWeekend) {
+                    this.state = 'working';
+                    this.isHome = false;
+                } else if (isNight) {
+                    this.state = 'sleeping';
+                    this.isHome = true;
+                } else if (isEvening) {
+                    this.state = 'relaxing';
+                    this.isHome = true;
+                } else if (hour >= 6 && hour < 9) {
+                    this.state = 'idle';
+                    this.isHome = true;
+                } else {
+                    if (Math.random() < 0.2) {
+                        this.state = 'out';
+                        this.isHome = false;
+                    } else {
+                        this.state = 'idle';
+                        this.isHome = true;
+                    }
+                }
+
+                this.updateNeeds();
+            }
+
+            restoreNeeds() {
+                if (this.state === 'eating') {
+                    this.hunger = Math.min(100, this.hunger + 40);
+                    this.mood = Math.min(100, this.mood + 5);
+                } else if (this.state === 'sleeping') {
+                    this.energy = Math.min(100, this.energy + 60);
+                } else if (this.state === 'relaxing') {
+                    this.mood = Math.min(100, this.mood + 20);
+                }
+            }
+        }
+
+        // ===== Name Generator =====
+        const nameData = {
+            surnames: ['王', '李', '张', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗'],
+            maleNames: ['伟', '强', '磊', '军', '杰', '涛', '明', '超', '勇', '鹏', '飞', '宇', '浩', '晨', '鑫', '龙', '辉', '波', '阳', '平'],
+            femaleNames: ['芳', '娟', '丽', '敏', '静', '秀', '英', '霞', '红', '梅', '萍', '燕', '玲', '丹', '莉', '颖', '雪', '莲', '芸', '芹']
+        };
+
+        function generateRandomName(gender) {
+            const surname = nameData.surnames[Math.floor(Math.random() * nameData.surnames.length)];
+            const names = gender === 'male' ? nameData.maleNames : nameData.femaleNames;
+            const givenName = names[Math.floor(Math.random() * names.length)] + names[Math.floor(Math.random() * names.length)];
+            return surname + givenName;
+        }
+
+        // ===== Job Configuration =====
+        const jobConfig = {
+            '程序员': { base: 3000, growth: 0.15, workStart: 9, workEnd: 20 },
+            '高级程序员': { base: 6000, growth: 0.2, workStart: 9, workEnd: 21 },
+            '教师': { base: 1500, growth: 0.05, workStart: 7, workEnd: 17 },
+            '销售': { base: 800, growth: 0.08, workStart: 9, workEnd: 18 },
+            '医生': { base: 2500, growth: 0.08, workStart: 8, workEnd: 18 },
+            '文员': { base: 1000, growth: 0.03, workStart: 9, workEnd: 17 },
+            '无业': { base: 0, growth: 0, workStart: 0, workEnd: 0 },
+            '自由职业': { base: 2000, growth: 0.1, workStart: 10, workEnd: 22 },
+            '服务员': { base: 800, growth: 0.05, workStart: 10, workEnd: 22 }
+        };
+
+        const personalities = [
+            { tag: '八卦', desc: '喜欢聊八卦' },
+            { tag: '老实', desc: '踏实可靠' },
+            { tag: '卷王', desc: '工作狂' },
+            { tag: '社恐', desc: '不爱说话' },
+            { tag: '开朗', desc: '活泼外向' },
+            { tag: '抠门', desc: '精打细算' },
+            { tag: '大方', desc: '乐于分享' },
+            { tag: '宅男', desc: '喜欢在家' }
+        ];
+
+        function generateApplicant() {
+            const gender = Math.random() > 0.5 ? 'male' : 'female';
+            const job = Object.keys(jobConfig)[Math.floor(Math.random() * 7)];
+            const config = jobConfig[job];
+            const salary = config.base + Math.floor(Math.random() * 1000);
+            const personality = personalities[Math.floor(Math.random() * personalities.length)];
+            
+            return {
+                id: Date.now() + Math.random(),
+                name: generateRandomName(gender),
+                job: job,
+                salary: salary,
+                personality: personality,
+                age: 20 + Math.floor(Math.random() * 15),
+                gender: gender
+            };
+        }
+
+        // ===== Core Game Data Structures =====
+        const gameState = {
+            date: new Date('2000-01-01'),
+            money: 5000,
+            reputation: 0,
+            currentSeason: 'winter',
+            currentWeekday: 6,
+            dayProgress: 0,
+            weather: 'sunny',
+            currentHour: 0
+        };
+
+        const buildings = [
+            { id: 101, area: 12, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 400 },
+            { id: 102, area: 15, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 500 },
+            { id: 103, area: 18, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 600 },
+            { id: 201, area: 20, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 700 },
+            { id: 202, area: 22, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 800 },
+            { id: 203, area: 25, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 900 },
+            { id: 301, area: 15, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 500 },
+            { id: 302, area: 18, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 600 },
+            { id: 303, area: 30, status: 'empty', renter: null, furniture: [], comfort: 0, rent: 1200 }
+        ];
+
+        const npcs = [];
+
+        // ===== Time System =====
+        const TIME_SCALE = 10;
+        const MINUTES_PER_DAY = 24 * 60;
+        const UPDATE_INTERVAL = 1000;
+
+        // ===== Utility Functions =====
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getWeekday(date) {
+            const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            return weekdays[date.getDay()];
+        }
+
+        function getSeason(date) {
+            const month = date.getMonth();
+            if (month >= 2 && month <= 4) return 'spring';
+            if (month >= 5 && month <= 7) return 'summer';
+            if (month >= 8 && month <= 10) return 'autumn';
+            return 'winter';
+        }
+
+        function getWeatherEmoji(weather) {
+            const weathers = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', snowy: '🌨️' };
+            return weathers[weather] || '☀️';
+        }
+
+        function getDayNightEmoji(hour) {
+            if (hour >= 6 && hour < 12) return '🌅';
+            if (hour >= 12 && hour < 18) return '☀️';
+            if (hour >= 18 && hour < 22) return '🌆';
+            return '🌙';
+        }
+
+        function isWeekend() {
+            return gameState.currentWeekday === 0 || gameState.currentWeekday === 6;
+        }
+
+        // ===== Core Game Functions =====
+        function updateTime() {
+            gameState.dayProgress += TIME_SCALE;
+            
+            const totalMinutes = gameState.dayProgress;
+            gameState.currentHour = Math.floor(totalMinutes / 60);
+            
+            npcs.forEach(npc => {
+                npc.updateBehavior(gameState.currentHour, isWeekend());
+                if (npc.isHome && ['sleeping', 'eating', 'relaxing'].includes(npc.state)) {
+                    npc.restoreNeeds();
+                }
+            });
+            
+            if (gameState.dayProgress >= MINUTES_PER_DAY) {
+                gameState.dayProgress = 0;
+                advanceDay();
+            }
+            
+            updateUI();
+        }
+
+        function advanceDay() {
+            gameState.date.setDate(gameState.date.getDate() + 1);
+            gameState.currentWeekday = (gameState.currentWeekday + 1) % 7;
+            gameState.currentSeason = getSeason(gameState.date);
+            
+            if (Math.random() < 0.2) {
+                const weathers = ['sunny', 'cloudy', 'rainy', 'snowy'];
+                gameState.weather = weathers[Math.floor(Math.random() * weathers.length)];
+            }
+            
+            if (gameState.date.getDate() === 1) {
+                collectMonthlyRent();
+            }
+            
+            updateNewsTicker();
+
+            npcs.forEach(npc => {
+                checkCollection(npc);
+            });
+
+            saveGame();
+        }
+
+        function collectMonthlyRent() {
+            let totalRent = 0;
+            let debtCount = 0;
+            
+            buildings.forEach(room => {
+                if (room.status === 'rented' && room.renter) {
+                    const npc = npcs.find(n => n.currentRoom === room.id);
+                    if (npc) {
+                        const paid = npc.payRent(room.rent);
+                        if (paid) {
+                            totalRent += room.rent;
+                            
+                            // Show float text on the room
+                            const roomCell = document.querySelector(`[onclick*="${room.id}"]`);
+                            if (roomCell) {
+                                setTimeout(() => {
+                                    const rect = roomCell.getBoundingClientRect();
+                                    const containerRect = document.querySelector('.screen-container').getBoundingClientRect();
+                                    const x = rect.left - containerRect.left + rect.width / 2;
+                                    const y = rect.top - containerRect.top;
+                                    showFloatText(`+${room.rent}元`, x, y, true);
+                                }, Math.random() * 500);
+                            }
+                        } else {
+                            debtCount++;
+                        }
+                    }
+                }
+            });
+            
+            if (totalRent > 0) {
+                gameState.money += totalRent;
+                showNotificationWithEffect(`🎉 收取租金 +${totalRent}元`, true);
+                playSound('coin');
+            }
+            
+            if (debtCount > 0) {
+                showNotification(`⚠️ ${debtCount}位租客拖欠房租！`);
+                playSound('error');
+            }
+        }
+
+        function showNotificationWithEffect(message, isCoin) {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.classList.add('show');
+            if (isCoin) {
+                notif.classList.add('coin');
+            }
+            
+            setTimeout(() => {
+                notif.classList.remove('show', 'coin');
+            }, 2500);
+        }
+
+        function updateUI() {
+            const totalMinutes = gameState.dayProgress;
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            
+            document.getElementById('timeDisplay').innerHTML = 
+                `🕐 ${formatDate(gameState.date)} ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            
+            document.getElementById('weekdayDisplay').textContent = 
+                `${getWeekday(gameState.date)} ${getDayNightEmoji(hours)}`;
+            
+            const moneyContainer = document.getElementById('moneyContainer');
+            document.getElementById('moneyDisplay').textContent = 
+                gameState.money.toLocaleString();
+            
+            if (gameState.money < 0) {
+                moneyContainer.classList.add('deficit');
+            } else {
+                moneyContainer.classList.remove('deficit');
+            }
+            
+            document.getElementById('weatherIcon').textContent = 
+                getWeatherEmoji(gameState.weather);
+            
+            renderRooms();
+        }
+
+        function renderRooms() {
+            const grid = document.getElementById('apartmentGrid');
+            grid.innerHTML = '';
+            
+            const isNight = gameState.currentHour >= 22 || gameState.currentHour < 6;
+            const isEvening = gameState.currentHour >= 18 && gameState.currentHour < 22;
+            
+            buildings.forEach(room => {
+                const cell = document.createElement('div');
+                cell.className = `room-cell ${room.status === 'rented' ? 'rented' : ''}`;
+                
+                const npc = npcs.find(n => n.currentRoom === room.id);
+                
+                if (room.status === 'rented' && room.renter) {
+                    const npcData = npcs.find(n => n.currentRoom === room.id);
+                    
+                    if (npcData && npcData.hasDebt) {
+                        cell.classList.add('debt');
+                    }
+                    
+                    if (npcData && npcData.isHome) {
+                        cell.classList.add('npc-present');
+                        
+                        if (isEvening || isNight) {
+                            cell.classList.add('lights-on');
+                        }
+                        
+                        const emoji = npcData.getStateEmoji();
+                        const animClass = npcData.getAnimationClass();
+                        
+                        let furnitureIcons = '';
+                        if (room.furniture && room.furniture.length > 0) {
+                            furnitureIcons = '<div class="room-furniture">' + 
+                                room.furniture.map(f => furnitureCatalog[f]?.icon || '').join('') + 
+                                '</div>';
+                        }
+                        
+                        const debtIcon = npcData.hasDebt ? '<span class="room-debt-icon">💢</span>' : '';
+                        
+                        const moneyPercent = Math.min(100, (npcData.money / npcData.salary) * 100);
+                        const moneyClass = moneyPercent > 30 ? 'money-positive' : 'money-negative';
+                        
+                        cell.innerHTML = `
+                            <span class="room-number">${room.id}</span>
+                            ${debtIcon}
+                            <span class="room-icon ${animClass}">${emoji}</span>
+                            <span class="room-status">${npcData.name}</span>
+                            <span class="room-renter">${npcData.job}</span>
+                            <div class="need-bars">
+                                <div class="need-bar"><div class="need-bar-fill need-hunger" style="width: ${npcData.hunger}%"></div></div>
+                                <div class="need-bar"><div class="need-bar-fill need-energy" style="width: ${npcData.energy}%"></div></div>
+                                <div class="need-bar"><div class="need-bar-fill need-mood" style="width: ${npcData.mood}%"></div></div>
+                            </div>
+                            <div class="money-bar">
+                                <div class="money-bar-fill ${moneyClass}" style="width: ${moneyPercent}%"></div>
+                            </div>
+                            ${furnitureIcons}
+                        `;
+                    } else {
+                        let furnitureIcons = '';
+                        if (room.furniture && room.furniture.length > 0) {
+                            furnitureIcons = '<div class="room-furniture">' + 
+                                room.furniture.map(f => furnitureCatalog[f]?.icon || '').join('') + 
+                                '</div>';
+                        }
+                        
+                        const debtIcon = npcData && npcData.hasDebt ? '<span class="room-debt-icon">💢</span>' : '';
+                        const icon = isNight ? '💤' : '🏠';
+                        
+                        cell.innerHTML = `
+                            <span class="room-number">${room.id}</span>
+                            ${debtIcon}
+                            <span class="room-icon">${icon}</span>
+                            <span class="room-status">${room.renter.name}</span>
+                            <span class="room-renter">${room.renter.job}</span>
+                            ${furnitureIcons}
+                        `;
+                    }
+                } else {
+                    cell.innerHTML = `
+                        <span class="room-number">${room.id}</span>
+                        <span class="room-icon">🟫</span>
+                        <span class="room-status">待租</span>
+                        <span class="room-renter">${room.area}㎡</span>
+                        <span class="rent-display">${room.rent}元/月</span>
+                    `;
+                }
+                
+                cell.onclick = () => handleRoomClick(room);
+                grid.appendChild(cell);
+            });
+        }
+
+        function handleRoomClick(room) {
+            playSound('click');
+            if (room.status === 'empty') {
+                showRentalDialog(room);
+            } else {
+                showRoomDetail(room);
+            }
+        }
+
+        function showRoomDetail(room) {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            
+            const npc = npcs.find(n => n.currentRoom === room.id);
+            let html = `<div class="dialog-title">🏠 房间 ${room.id} 详情</div>`;
+            
+            html += `<div style="text-align:left;margin:10px 0;">`;
+            html += `<div>📐 面积: ${room.area}㎡</div>`;
+            html += `<div>💵 租金: ${room.rent}元/月</div>`;
+            html += `<div>🪑 舒适度: ${room.comfort}</div>`;
+            
+            if (room.furniture && room.furniture.length > 0) {
+                html += `<div>🛋️ 家具: ${room.furniture.join(', ')}</div>`;
+            } else {
+                html += `<div>🛋️ 家具: 无</div>`;
+            }
+            
+            if (npc) {
+                html += `<hr style="margin:10px 0;border-color:var(--screen-dark)">`;
+                html += `<div>👤 租客: ${npc.name}</div>`;
+                html += `<div>💼 职业: ${npc.job}</div>`;
+                html += `<div>💰 月薪: ${npc.salary}元</div>`;
+                html += `<div>💳 余额: ${npc.money}元</div>`;
+                html += `<div>📊 状态: ${npc.state}</div>`;
+                html += `<div>🍜 饥饿: ${Math.floor(npc.hunger)}%</div>`;
+                html += `<div>⚡ 精力: ${Math.floor(npc.energy)}%</div>`;
+                html += `<div>😊 心情: ${Math.floor(npc.mood)}%</div>`;
+                
+                if (npc.hasDebt) {
+                    html += `<div style="color:#c0392b">⚠️ 欠租状态！</div>`;
+                }
+            }
+            
+            html += `</div>`;
+            html += `<button class="close-btn" onclick="closeDialog()">返回</button>`;
+            html += `<button class="close-btn" style="margin-left:10px;background:var(--accent-gold);color:var(--screen-dark)" onclick="showFurnitureShopForRoom(${room.id})">🛒 购买家具</button>`;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+        }
+
+        function showRentalDialog(room) {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            
+            const applicants = [generateApplicant(), generateApplicant(), generateApplicant()];
+            
+            let html = `<div class="dialog-title">🏠 房间 ${room.id} 招租</div>`;
+            
+            applicants.forEach((app, index) => {
+                const genderEmoji = app.gender === 'male' ? '👨' : '👩';
+                const canAfford = app.salary >= room.rent * 1.2;
+                
+                html += `
+                    <div class="applicant-card ${canAfford ? '' : 'disabled'}" onclick="${canAfford ? `selectApplicant(${room.id}, ${index})` : ''}">
+                        <div class="applicant-name">${genderEmoji} ${app.name}</div>
+                        <div class="applicant-info">职业: ${app.job} | 月薪: ${app.salary}元</div>
+                        <div class="applicant-tags">🏷️ ${app.personality.tag} | 年龄: ${app.age}岁</div>
+                        ${canAfford ? '' : '<div style="color:#c0392b">⚠️ 收入不足</div>'}
+                    </div>
+                `;
+            });
+            
+            html += `<button class="close-btn" onclick="closeDialog()">取消</button>`;
+            
+            window.currentApplicants = applicants;
+            window.currentRoom = room;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+        }
+
+        function selectApplicant(roomId, index) {
+            const room = buildings.find(b => b.id === roomId);
+            const applicant = window.currentApplicants[index];
+            
+            const npc = new NPC({
+                id: applicant.id,
+                name: applicant.name,
+                job: applicant.job,
+                salary: applicant.salary,
+                personality: applicant.personality,
+                age: applicant.age,
+                gender: applicant.gender
+            });
+            
+            npc.currentRoom = roomId;
+            npc.workStartHour = jobConfig[applicant.job].workStart;
+            npc.workEndHour = jobConfig[applicant.job].workEnd;
+            
+            npcs.push(npc);
+            
+            room.status = 'rented';
+            room.renter = {
+                name: applicant.name,
+                job: applicant.job,
+                salary: applicant.salary
+            };
+            
+            closeDialog();
+            showNotificationWithEffect(`🎉 ${applicant.name} 入住房间 ${roomId}！`, true);
+            playSound('success');
+            
+            // Check collection for new tenant
+            checkCollection(npc);
+            
+            window.currentApplicants = null;
+            window.currentRoom = null;
+            
+            saveGame();
+        }
+
+        function showFurnitureShop() {
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            
+            let html = `<div class="dialog-title">🛒 家具商店</div>`;
+            html += `<div style="text-align:left;margin-bottom:10px;">💰 当前资金: ${gameState.money}元</div>`;
+            
+            Object.entries(furnitureCatalog).forEach(([name, item]) => {
+                html += `
+                    <div class="furniture-card" onclick="handleFurniturePurchase('${name}')">
+                        <div class="applicant-name">${item.icon} ${name}</div>
+                        <div class="applicant-info">💵 价格: ${item.price}元 | 🪑 舒适度: +${item.comfort}</div>
+                        <div class="applicant-tags">${item.desc}</div>
+                    </div>
+                `;
+            });
+            
+            html += `<button class="close-btn" onclick="closeDialog()">关闭</button>`;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+            playSound('click');
+        }
+
+        function showFurnitureShopForRoom(roomId) {
+            closeDialog();
+            
+            const overlay = document.getElementById('dialogOverlay');
+            const box = document.getElementById('dialogBox');
+            const room = buildings.find(b => b.id === roomId);
+            
+            let html = `<div class="dialog-title">🛒 为房间 ${roomId} 购买家具</div>`;
+            html += `<div style="text-align:left;margin-bottom:10px;">💰 当前资金: ${gameState.money}元</div>`;
+            
+            if (room.furniture && room.furniture.length > 0) {
+                html += `<div style="text-align:left;margin-bottom:10px;">已有家具: ${room.furniture.join(', ')}</div>`;
+            }
+            
+            Object.entries(furnitureCatalog).forEach(([name, item]) => {
+                const hasFurniture = room.furniture && room.furniture.includes(name);
+                const canAfford = gameState.money >= item.price;
+                const disabled = hasFurniture || !canAfford;
+                
+                html += `
+                    <div class="furniture-card ${disabled ? 'disabled' : ''}" onclick="${disabled ? '' : `buyFurnitureForRoom(${roomId}, '${name}')`}">
+                        <div class="applicant-name">${item.icon} ${name} ${hasFurniture ? '✓' : ''}</div>
+                        <div class="applicant-info">💵 价格: ${item.price}元 | 🪑 舒适度: +${item.comfort}</div>
+                        <div class="applicant-tags">${item.desc}</div>
+                        ${!canAfford ? '<div style="color:#c0392b">⚠️ 资金不足</div>' : ''}
+                    </div>
+                `;
+            });
+            
+            html += `<button class="close-btn" onclick="closeDialog()">返回</button>`;
+            
+            box.innerHTML = html;
+            overlay.classList.add('show');
+        }
+
+        function buyFurnitureForRoom(roomId, furnitureName) {
+            const room = buildings.find(b => b.id === roomId);
+            const item = furnitureCatalog[furnitureName];
+            
+            if (!room.furniture) {
+                room.furniture = [];
+            }
+            
+            if (gameState.money >= item.price && !room.furniture.includes(furnitureName)) {
+                gameState.money -= item.price;
+                room.furniture.push(furnitureName);
+                room.comfort += item.comfort;
+                
+                // Apply furniture effects
+                const npc = npcs.find(n => n.currentRoom === roomId);
+                if (npc) {
+                    if (furnitureName === '56k调制解调器' && npc.job === '程序员') {
+                        npc.isAdvancedProgrammer = true;
+                        npc.job = '高级程序员';
+                        npc.salary = jobConfig['高级程序员'].base;
+                        npc.workStartHour = 9;
+                        npc.workEndHour = 21;
+                    }
+                    if (furnitureName === '双人床') {
+                        npc.canMarry = true;
+                    }
+                }
+                
+                // Update rent based on comfort
+                room.rent = Math.floor(room.rent * (1 + item.comfort / 200));
+                
+                showNotificationWithEffect(`🛒 购买成功！\n-${item.price}元\n+${item.comfort}舒适度`, false);
+                playSound('success');
+                
+                // Show float text on the room
+                const roomCell = document.querySelector(`[onclick*="${roomId}"]`);
+                if (roomCell) {
+                    const rect = roomCell.getBoundingClientRect();
+                    const containerRect = document.querySelector('.screen-container').getBoundingClientRect();
+                    const x = rect.left - containerRect.left + rect.width / 2;
+                    const y = rect.top - containerRect.top;
+                    showFloatText(`-${item.price}元`, x, y, false);
+                }
+                
+                // Refresh the furniture shop
+                showFurnitureShopForRoom(roomId);
+                updateUI();
+            }
+        }
+
+        function handleFurniturePurchase(name) {
+            showNotification('请先选择一个房间\n然后购买家具');
+        }
+
+        function closeDialog() {
+            const overlay = document.getElementById('dialogOverlay');
+            overlay.classList.remove('show');
+            playSound('click');
+        }
+
+        function handleDockClick(section) {
+            const messages = {
+                rooms: '🏠 房源管理\n点击空房间招租',
+                tenants: `👥 租客管理\n当前租客: ${npcs.length}人`,
+                shop: '🛒 家具商店\n选择房间购买家具',
+                events: '📋 事件日志\n查看新闻了解局势',
+                menu: '☰ 菜单\n功能开发中...'
+            };
+            
+            showNotification(messages[section] || '功能开发中');
+            playSound('click');
+        }
+
+        function showNotification(message) {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.classList.add('show');
+            
+            setTimeout(() => {
+                notif.classList.remove('show');
+            }, 2500);
+        }
+
+        // ===== Initialize Game =====
+        function initGame() {
+            console.log('🎮 千禧年房东模拟器 初始化中...');
+            
+            // Try to load save first
+            const loaded = loadGame();
+            
+            if (loaded) {
+                console.log('📅 存档日期:', formatDate(gameState.date));
+                console.log('💰 当前资金:', gameState.money, '元');
+                console.log('🏠 房间数量:', buildings.length);
+                console.log('👥 租客数量:', npcs.length);
+                console.log('📚 图鉴收集:', collectionData.unlocked.length, '/', specialTenants.length);
+            } else {
+                console.log('📅 起始日期:', formatDate(gameState.date));
+                console.log('💰 初始资金:', gameState.money, '元');
+                console.log('🏠 房间数量:', buildings.length);
+            }
+            
+            updateUI();
+            updateNewsTicker();
+            
+            setInterval(updateTime, UPDATE_INTERVAL);
+            
+            if (loaded) {
+                showNotification('📂 存档加载成功！\n欢迎回来！');
+            } else {
+                showNotification('🎮 欢迎来到千禧年房东模拟器！\n2000年1月1日\n点击空房间开始招租');
+            }
+            
+            playSound('notification');
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
